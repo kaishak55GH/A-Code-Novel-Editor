@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小説執筆エディタ</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Hiragino Kaku Gothic ProN','Meiryo',sans-serif;background:#f5f4f0;color:#222;font-size:14px}
+h2.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+.app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+
+/* 上部タブ */
+.top-pane{background:#fff;border-bottom:1px solid #ddd;flex-shrink:0}
+.top-tabs{display:flex;background:#f0efe9;border-bottom:1px solid #ddd}
+.ttab{padding:8px 18px;font-size:13px;cursor:pointer;border:none;background:none;color:#666;border-bottom:2px solid transparent}
+.ttab.active{color:#222;border-bottom:2px solid #444;font-weight:500;background:#fff}
+.ttab:hover{color:#333}
+
+/* 上部パネル — display:none / block で切り替え */
+.top-panel{display:none;padding:10px 14px}
+.top-panel.active{display:flex;gap:10px}
+#top-plot.active{display:block}
+
+/* キャラ */
+.char-btns-col{display:flex;flex-direction:column;gap:3px;min-width:88px}
+.cbtn{padding:5px 8px;font-size:12px;border:1px solid #ddd;border-radius:5px;background:#fafaf8;color:#555;cursor:pointer;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cbtn.active{background:#e8e7e1;color:#222;border-color:#999;font-weight:500}
+.cbtn:hover{background:#f0efe9}
+.img-box{width:100px;min-width:100px;height:120px;border:1px dashed #ccc;border-radius:6px;background:#fafaf8;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;overflow:hidden;flex-shrink:0;flex-direction:column;gap:4px}
+.img-box img{width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0}
+.img-box .drop-label{font-size:10px;color:#aaa;text-align:center;line-height:1.5;position:relative;z-index:1;pointer-events:none}
+.img-box input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;z-index:2}
+.img-box.dragover{border-color:#888;background:#f0efe9}
+.profile-area{flex:1;min-width:0}
+.profile-area textarea{width:100%;height:120px;resize:none;font-size:12px;line-height:1.7;padding:7px;border:1px solid #ddd;border-radius:5px;background:#fafaf8;color:#222;font-family:inherit}
+.profile-area textarea:focus{outline:none;border-color:#888}
+
+/* 世界観 */
+.world-img{width:150px;min-width:150px;height:110px;border:1px dashed #ccc;border-radius:6px;background:#fafaf8;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;overflow:hidden;flex-shrink:0;flex-direction:column;gap:4px}
+.world-img img{width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0}
+.world-img .drop-label{font-size:10px;color:#aaa;text-align:center;line-height:1.5;position:relative;z-index:1;pointer-events:none}
+.world-img input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;z-index:2}
+.world-img.dragover{border-color:#888;background:#f0efe9}
+.world-area{flex:1}
+.world-area textarea{width:100%;height:110px;resize:none;font-size:12px;line-height:1.7;padding:7px;border:1px solid #ddd;border-radius:5px;background:#fafaf8;color:#222;font-family:inherit}
+.world-area textarea:focus{outline:none;border-color:#888}
+
+/* あらすじ */
+#top-plot textarea{width:100%;height:110px;resize:none;font-size:12px;line-height:1.7;padding:7px;border:1px solid #ddd;border-radius:5px;background:#fafaf8;color:#222;font-family:inherit}
+#top-plot textarea:focus{outline:none;border-color:#888}
+
+/* 下部 */
+.bottom-pane{display:flex;flex:1;overflow:hidden}
+.structure-col{width:180px;min-width:180px;border-right:1px solid #ddd;background:#fafaf8;display:flex;flex-direction:column;overflow:hidden}
+.structure-header{padding:8px 10px;font-size:12px;font-weight:500;color:#555;border-bottom:1px solid #ddd;display:flex;align-items:center;justify-content:space-between}
+.structure-list{flex:1;overflow-y:auto}
+.struct-item{display:flex;align-items:center;padding:5px 10px;cursor:pointer;font-size:12px;color:#444;border-bottom:1px solid #f0efe9;gap:4px}
+.struct-item:hover{background:#f0efe9}
+.struct-item.active{background:#e8e7e1;color:#222;font-weight:500}
+.struct-item.chapter{font-weight:500;color:#333;background:#ece9e0;padding-left:10px}
+.struct-item.episode{padding-left:22px;font-size:11px}
+.struct-item.prologue,.struct-item.epilogue{padding-left:10px;font-weight:500}
+.struct-del{margin-left:auto;font-size:10px;color:#bbb;cursor:pointer;padding:0 2px;display:none}
+.struct-item:hover .struct-del{display:inline}
+.struct-add-row{padding:6px 10px;display:flex;flex-direction:column;gap:4px;border-top:1px solid #ddd}
+.struct-add-row select,.struct-add-row input{font-size:11px;padding:3px 6px;border:1px solid #ddd;border-radius:4px;background:#fff;color:#333;width:100%}
+.struct-add-row button{font-size:11px;padding:3px 6px;border:1px solid #ccc;border-radius:4px;background:#fff;color:#333;cursor:pointer;width:100%}
+.struct-add-row button:hover{background:#f0efe9}
+
+/* エディタ */
+.editor-col{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.editor-toolbar{display:flex;gap:5px;flex-wrap:wrap;align-items:center;padding:7px 10px;border-bottom:1px solid #ddd;background:#f5f4f0}
+.tbtn{padding:4px 10px;font-size:12px;border:1px solid #ccc;border-radius:4px;background:#fff;color:#333;cursor:pointer}
+.tbtn:hover{background:#f0efe9}
+.tbtn.primary{background:#444;color:#fff;border-color:#444}
+.tbtn.primary:hover{background:#222}
+.editor-title-bar{padding:6px 14px;border-bottom:1px solid #f0efe9;background:#fff;display:flex;align-items:center;gap:8px}
+.editor-title-bar input{font-size:14px;font-weight:500;border:none;background:transparent;color:#222;flex:1;outline:none;font-family:inherit}
+.editor-title-bar .char-count{font-size:11px;color:#aaa;white-space:nowrap}
+.editor-wrap{flex:1;overflow-y:auto;background:#fff}
+#editor{width:100%;min-height:100%;font-size:15px;line-height:2.0;padding:16px 20px;border:none;background:transparent;color:#222;font-family:'Hiragino Mincho ProN','Georgia',serif;outline:none;resize:none}
+.editor-statusbar{padding:5px 12px;border-top:1px solid #ddd;background:#f5f4f0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.save-st{font-size:11px;color:#777}
+.ruby-hint{font-size:10px;color:#aaa;margin-left:auto}
+</style>
+</head>
+<body>
+<h2 class="sr-only">小説執筆エディタ</h2>
+<div class="app">
+
+<!-- 上部 -->
+<div class="top-pane">
+  <div class="top-tabs">
+    <button class="ttab active" onclick="showTop('chara')">👤 キャラクター</button>
+    <button class="ttab" onclick="showTop('world')">🌏 世界観</button>
+    <button class="ttab" onclick="showTop('plot')">📋 あらすじ</button>
+  </div>
+
+  <!-- キャラクター -->
+  <div id="top-chara" class="top-panel active">
+    <div class="char-btns-col" id="char-btns"></div>
+    <div class="img-box" id="char-img-box"
+         ondragover="handleDragOver(event,'char-img-box')"
+         ondragleave="handleDragLeave(event,'char-img-box')"
+         ondrop="handleDrop(event,'char')">
+      <div class="drop-label">クリックまたは<br>ドラッグ＆ドロップ<br>で画像読込</div>
+      <img id="char-img" alt="キャラ画像" style="display:none">
+      <input type="file" accept="image/*" onchange="loadCharImg(event)">
+    </div>
+    <div class="profile-area">
+      <textarea id="char-profile" placeholder="名前：&#10;年齢：&#10;外見：&#10;性格：&#10;備考：" oninput="saveCharData()"></textarea>
+    </div>
+  </div>
+
+  <!-- 世界観 -->
+  <div id="top-world" class="top-panel">
+    <div class="world-img" id="world-img-box"
+         ondragover="handleDragOver(event,'world-img-box')"
+         ondragleave="handleDragLeave(event,'world-img-box')"
+         ondrop="handleDrop(event,'world')">
+      <div class="drop-label">クリックまたは<br>ドラッグ＆ドロップ</div>
+      <img id="world-img" alt="世界観画像" style="display:none">
+      <input type="file" accept="image/*" onchange="loadWorldImg(event)">
+    </div>
+    <div class="world-area">
+      <textarea id="world-text" placeholder="世界観・舞台設定&#10;時代背景、地理、魔法体系、社会構造など" oninput="S.set('world-text',this.value)"></textarea>
+    </div>
+  </div>
+
+  <!-- あらすじ -->
+  <div id="top-plot" class="top-panel">
+    <textarea id="plot-text" placeholder="全体のあらすじ・プロット・構成メモ" oninput="S.set('plot-text',this.value)"></textarea>
+  </div>
+</div>
+
+<!-- 下部 -->
+<div class="bottom-pane">
+  <div class="structure-col">
+    <div class="structure-header">段落構成
+      <span style="cursor:pointer;font-size:16px;color:#888;line-height:1" title="追加" onclick="addSection()">＋</span>
+    </div>
+    <div class="structure-list" id="struct-list"></div>
+    <div class="struct-add-row">
+      <select id="add-type">
+        <option value="prologue">序章</option>
+        <option value="chapter">第○章</option>
+        <option value="episode" selected>第○話</option>
+        <option value="epilogue">エピローグ</option>
+        <option value="extra">番外編</option>
+        <option value="memo">メモ</option>
+      </select>
+      <input type="text" id="add-label" placeholder="タイトル（省略可）">
+      <button onclick="addSection()">＋ 追加</button>
+    </div>
+  </div>
+
+  <div class="editor-col">
+    <div class="editor-toolbar">
+      <button class="tbtn" onclick="insertRuby()">｜《ふりがな》</button>
+      <button class="tbtn" onclick="insertIndent()">段落↵</button>
+      <button class="tbtn" onclick="insertDash()">――</button>
+      <button class="tbtn" onclick="insertDot()">……</button>
+      <button class="tbtn primary" onclick="exportCurrent()">💾 保存</button>
+      <button class="tbtn" onclick="exportAll()">📦 全話保存</button>
+      <button class="tbtn" onclick="copyForNarou()">なろうコピー</button>
+    </div>
+    <div class="editor-title-bar">
+      <input type="text" id="section-title-input" placeholder="サブタイトル（任意）" oninput="saveSectionTitle()">
+      <span class="char-count" id="char-count">0文字</span>
+    </div>
+    <div class="editor-wrap">
+      <textarea id="editor" placeholder="ここに本文を書きます。&#10;&#10;ふりがな記法：｜桜《さくら》の木の下で" oninput="autoSave();updateCount()"></textarea>
+    </div>
+    <div class="editor-statusbar">
+      <span class="save-st" id="save-status">未保存</span>
+      <span class="ruby-hint">ふりがな：｜漢字《かな》</span>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+// ストレージ
+var S={
+  get:function(k){try{return localStorage.getItem(k)}catch(e){return null}},
+  set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+};
+
+// ===== タブ切り替え =====
+function showTop(t){
+  var ids=['chara','world','plot'];
+  var tabs=document.querySelectorAll('.ttab');
+  for(var i=0;i<ids.length;i++){
+    var panel=document.getElementById('top-'+ids[i]);
+    var tab=tabs[i];
+    if(ids[i]===t){
+      panel.style.display=(t==='plot')?'block':'flex';
+      tab.classList.add('active');
+    }else{
+      panel.style.display='none';
+      tab.classList.remove('active');
+    }
+  }
+}
+
+// ===== キャラクター =====
+var CHAR_COUNT=5;
+var curChar=0;
+
+function buildCharBtns(){
+  var g=document.getElementById('char-btns');
+  g.innerHTML='';
+  for(var i=0;i<CHAR_COUNT;i++){
+    (function(idx){
+      var b=document.createElement('button');
+      b.className='cbtn'+(idx===curChar?' active':'');
+      b.textContent=S.get('char-name-'+idx)||('キャラ'+(idx+1));
+      b.onclick=function(){selectChar(idx);};
+      g.appendChild(b);
+    })(i);
+  }
+}
+function selectChar(i){
+  saveCharNow();
+  curChar=i;
+  var btns=document.querySelectorAll('.cbtn');
+  for(var j=0;j<btns.length;j++) btns[j].classList.toggle('active',j===i);
+  document.getElementById('char-profile').value=S.get('char-profile-'+i)||'';
+  setImg(document.getElementById('char-img'), S.get('char-img-'+i));
+}
+function saveCharNow(){S.set('char-profile-'+curChar, document.getElementById('char-profile').value);}
+function saveCharData(){
+  saveCharNow();
+  var first=document.getElementById('char-profile').value.split('\n')[0];
+  if(first.indexOf('名前：')===0){
+    var n=first.replace('名前：','').trim();
+    if(n){S.set('char-name-'+curChar,n);buildCharBtns();}
+  }
+}
+function loadCharImg(e){readImgFile(e.target.files[0],'char');}
+function loadWorldImg(e){readImgFile(e.target.files[0],'world');}
+function readImgFile(f,type){
+  if(!f)return;
+  var r=new FileReader();
+  r.onload=function(ev){
+    if(type==='char'){S.set('char-img-'+curChar,ev.target.result);setImg(document.getElementById('char-img'),ev.target.result);}
+    else{S.set('world-img',ev.target.result);setImg(document.getElementById('world-img'),ev.target.result);}
+  };
+  r.readAsDataURL(f);
+}
+function setImg(el,src){
+  if(src){el.src=src;el.style.display='block';}
+  else{el.style.display='none';}
+}
+function handleDragOver(e,id){e.preventDefault();document.getElementById(id).classList.add('dragover');}
+function handleDragLeave(e,id){document.getElementById(id).classList.remove('dragover');}
+function handleDrop(e,type){
+  e.preventDefault();
+  var id=type==='char'?'char-img-box':'world-img-box';
+  document.getElementById(id).classList.remove('dragover');
+  var f=e.dataTransfer.files[0];
+  if(f&&f.type.indexOf('image/')===0) readImgFile(f,type);
+}
+
+// ===== 段落構成 =====
+var sections=[];
+var curSectionId=null;
+
+function loadSections(){
+  var raw=S.get('sections');
+  if(raw){try{sections=JSON.parse(raw);}catch(e){sections=[];}}
+  if(!sections.length){
+    sections=[
+      {id:'prologue-0',type:'prologue',label:'序章',title:'',text:''},
+      {id:'chapter-0',type:'chapter',label:'第1章',title:'',text:''},
+      {id:'episode-0',type:'episode',label:'第1話',title:'',text:''},
+      {id:'episode-1',type:'episode',label:'第2話',title:'',text:''}
+    ];
+    saveSections();
+  }
+}
+function saveSections(){S.set('sections',JSON.stringify(sections));}
+function getSection(id){for(var i=0;i<sections.length;i++){if(sections[i].id===id)return sections[i];}return null;}
+
+function buildStructList(){
+  var el=document.getElementById('struct-list');
+  el.innerHTML='';
+  for(var i=0;i<sections.length;i++){
+    (function(s){
+      var div=document.createElement('div');
+      div.className='struct-item '+s.type+(s.id===curSectionId?' active':'');
+      var label=s.label+(s.title?' — '+s.title:'');
+      div.innerHTML='<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(label)+'</span>'
+        +'<span class="struct-del" data-id="'+s.id+'">✕</span>';
+      div.querySelector('.struct-del').onclick=function(e){e.stopPropagation();deleteSection(s.id);};
+      div.onclick=function(){selectSection(s.id);};
+      el.appendChild(div);
+    })(sections[i]);
+  }
+}
+function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function selectSection(id){
+  saveCurrentSection();
+  curSectionId=id;
+  var s=getSection(id);if(!s)return;
+  document.getElementById('editor').value=s.text||'';
+  document.getElementById('section-title-input').value=s.title||'';
+  updateCount();
+  buildStructList();
+  document.getElementById('save-status').textContent='「'+s.label+'」を表示中';
+}
+function saveCurrentSection(){
+  if(!curSectionId)return;
+  var s=getSection(curSectionId);if(!s)return;
+  s.text=document.getElementById('editor').value;
+  s.title=document.getElementById('section-title-input').value;
+  saveSections();
+}
+function saveSectionTitle(){
+  if(!curSectionId)return;
+  var s=getSection(curSectionId);if(!s)return;
+  s.title=document.getElementById('section-title-input').value;
+  saveSections();buildStructList();
+}
+function addSection(){
+  var type=document.getElementById('add-type').value;
+  var userLabel=document.getElementById('add-label').value.trim();
+  var autoLabel=buildAutoLabel(type);
+  var id=type+'-'+Date.now();
+  sections.push({id:id,type:type,label:userLabel||autoLabel,title:'',text:''});
+  saveSections();buildStructList();
+  document.getElementById('add-label').value='';
+  selectSection(id);
+}
+function buildAutoLabel(type){
+  var n=0;
+  for(var i=0;i<sections.length;i++){if(sections[i].type===type)n++;}
+  n++;
+  var map={prologue:'序章',chapter:'第'+n+'章',episode:'第'+n+'話',epilogue:'エピローグ',extra:'番外編'+n,memo:'メモ'+n};
+  return map[type]||('項目'+n);
+}
+function deleteSection(id){
+  var s=getSection(id);if(!s)return;
+  if(!confirm('「'+s.label+'」を削除しますか？'))return;
+  for(var i=0;i<sections.length;i++){if(sections[i].id===id){sections.splice(i,1);break;}}
+  if(curSectionId===id) curSectionId=sections.length?sections[0].id:null;
+  saveSections();buildStructList();
+  if(curSectionId)selectSection(curSectionId);
+}
+
+// ===== エディタ =====
+var saveTimer=null;
+function autoSave(){
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(function(){
+    saveCurrentSection();
+    var t=new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('save-status').textContent='自動保存 '+t;
+  },1500);
+}
+function updateCount(){
+  var n=document.getElementById('editor').value.length;
+  document.getElementById('char-count').textContent=n.toLocaleString()+'文字';
+}
+function insertAt(str){
+  var ta=document.getElementById('editor');
+  var s=ta.selectionStart,e=ta.selectionEnd;
+  ta.value=ta.value.substring(0,s)+str+ta.value.substring(e);
+  ta.selectionStart=ta.selectionEnd=s+str.length;
+  ta.focus();autoSave();
+}
+function insertRuby(){
+  var ta=document.getElementById('editor');
+  var s=ta.selectionStart,e=ta.selectionEnd;
+  var sel=ta.value.substring(s,e)||'漢字';
+  insertAt('｜'+sel+'《かな》');
+}
+function insertIndent(){insertAt('\n\n　');}
+function insertDash(){insertAt('――');}
+function insertDot(){insertAt('……');}
+
+function exportCurrent(){
+  if(!curSectionId){alert('セクションを選択してください');return;}
+  var s=getSection(curSectionId);
+  download((s.label+(s.title?'_'+s.title:''))+'.txt',s.text||'');
+}
+function exportAll(){
+  var out='';
+  for(var i=0;i<sections.length;i++){
+    var s=sections[i];
+    out+='【'+s.label+(s.title?' — '+s.title:'')+'】\n\n'+(s.text||'')+'\n\n\n';
+  }
+  download('小説_全文.txt',out);
+}
+function download(filename,text){
+  var blob=new Blob([text],{type:'text/plain;charset=utf-8'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=filename;
+  a.click();
+}
+function copyForNarou(){
+  if(!curSectionId)return;
+  var s=getSection(curSectionId);
+  var txt=(s.text||'').replace(/｜(.+?)《.+?》/g,'$1');
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(txt).then(function(){
+      document.getElementById('save-status').textContent='なろう用にコピーしました（ふりがな除去済み）';
+    });
+  }else{
+    var ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();
+    document.execCommand('copy');document.body.removeChild(ta);
+    document.getElementById('save-status').textContent='コピーしました';
+  }
+}
+
+// ===== 初期化 =====
+loadSections();
+buildStructList();
+if(sections.length) selectSection(sections[0].id);
+buildCharBtns();
+selectChar(0);
+var wt=S.get('world-text');if(wt)document.getElementById('world-text').value=wt;
+var wi=S.get('world-img');if(wi)setImg(document.getElementById('world-img'),wi);
+var pt=S.get('plot-text');if(pt)document.getElementById('plot-text').value=pt;
+updateCount();
+</script>
+</body>
+</html>
