@@ -395,7 +395,8 @@ function exportAll(){
   download('小説_全文.txt',out);
 }
 function download(filename,text){
-  var blob=new Blob([text],{type:'text/plain;charset=utf-8'});
+  var bom=new Uint8Array([0xEF,0xBB,0xBF]);
+  var blob=new Blob([bom,text],{type:'text/plain;charset=utf-8'});
   var a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
   a.download=filename;
