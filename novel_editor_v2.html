@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>小説執筆エディタ</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f7f5f0;
+  --surface:#fff;
+  --surface2:#f0ede5;
+  --border:#ddd;
+  --border2:#e8e4dc;
+  --text:#1a1a1a;
+  --text2:#555;
+  --text3:#999;
+  --accent:#3d2b1f;
+  --accent2:#7c5c47;
+  --highlight:#fdf6e3;
+  --ai:#e8f4e8;
+  --ai-border:#6aaa6a;
+  --danger:#c0392b;
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP','Meiryo',sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+
+/* ======== APP LAYOUT ======== */
+.app{display:flex;flex-direction:column;height:100vh}
+
+/* ======== TOP PANE ======== */
+.top-pane{background:var(--surface);border-bottom:2px solid var(--border);flex-shrink:0;overflow:hidden;transition:height 0.3s ease}
+.top-pane.collapsed{height:36px!important}
+.top-tabs{display:flex;align-items:center;background:var(--surface2);border-bottom:1px solid var(--border);min-height:36px}
+.ttab{padding:7px 16px;font-size:12px;cursor:pointer;border:none;background:none;color:var(--text2);border-bottom:2px solid transparent;white-space:nowrap}
+.ttab.active{color:var(--accent);border-bottom:2px solid var(--accent);font-weight:600;background:var(--surface)}
+.ttab:hover{color:var(--accent)}
+.top-toggle{margin-left:auto;padding:4px 10px;font-size:11px;border:none;background:none;color:var(--text3);cursor:pointer;display:flex;align-items:center;gap:3px;white-space:nowrap}
+.top-toggle:hover{color:var(--text2)}
+.top-panel{display:none;padding:10px 14px;gap:10px}
+.top-panel.active{display:flex}
+#top-plot.active{display:block}
+.collapsed .top-panel{display:none!important}
+
+/* キャラ */
+.char-btns-col{display:flex;flex-direction:column;gap:3px;min-width:86px}
+.cbtn{padding:5px 8px;font-size:12px;border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:var(--text2);cursor:pointer;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:all 0.15s}
+.cbtn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.cbtn:hover{background:var(--surface2);border-color:var(--accent2)}
+.img-box{width:96px;min-width:96px;height:116px;border:1.5px dashed #bbb;border-radius:6px;background:var(--surface2);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;overflow:hidden;flex-shrink:0;flex-direction:column;gap:4px;transition:border-color 0.2s}
+.img-box img{width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0}
+.img-box .drop-label{font-size:10px;color:var(--text3);text-align:center;line-height:1.6;position:relative;z-index:1;pointer-events:none}
+.img-box input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;z-index:2}
+.img-box.dragover{border-color:var(--accent);background:var(--highlight)}
+.profile-area{flex:1;min-width:0}
+.profile-area textarea{width:100%;height:116px;resize:none;font-size:12px;line-height:1.8;padding:8px;border:1px solid var(--border);border-radius:5px;background:var(--surface2);color:var(--text);font-family:inherit}
+.profile-area textarea:focus{outline:none;border-color:var(--accent2)}
+.world-img{width:140px;min-width:140px;height:106px;border:1.5px dashed #bbb;border-radius:6px;background:var(--surface2);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;overflow:hidden;flex-shrink:0;flex-direction:column;gap:4px}
+.world-img img{width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0}
+.world-img .drop-label{font-size:10px;color:var(--text3);text-align:center;line-height:1.6;position:relative;z-index:1;pointer-events:none}
+.world-img input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;z-index:2}
+.world-area{flex:1}
+.world-area textarea{width:100%;height:106px;resize:none;font-size:12px;line-height:1.8;padding:8px;border:1px solid var(--border);border-radius:5px;background:var(--surface2);color:var(--text);font-family:inherit}
+.world-area textarea:focus{outline:none;border-color:var(--accent2)}
+#top-plot textarea{width:100%;height:106px;resize:none;font-size:12px;line-height:1.8;padding:8px;border:1px solid var(--border);border-radius:5px;background:var(--surface2);color:var(--text);font-family:inherit}
+#top-plot textarea:focus{outline:none;border-color:var(--accent2)}
+
+/* ======== RESIZER ======== */
+.resizer{height:5px;background:var(--surface2);cursor:row-resize;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-top:1px solid var(--border);border-bottom:1px solid var(--border);transition:background 0.2s}
+.resizer:hover,.resizer.dragging{background:var(--accent2)}
+.resizer-dots{display:flex;gap:3px}
+.resizer-dot{width:4px;height:4px;border-radius:50%;background:#bbb}
+.resizer:hover .resizer-dot,.resizer.dragging .resizer-dot{background:#fff}
+
+/* ======== BOTTOM ======== */
+.bottom-pane{display:flex;flex:1;overflow:hidden;min-height:0}
+.structure-col{width:176px;min-width:176px;border-right:1px solid var(--border);background:var(--surface2);display:flex;flex-direction:column;overflow:hidden;transition:width 0.2s,min-width 0.2s}
+.structure-col.collapsed{width:0!important;min-width:0!important;overflow:hidden}
+.structure-header{padding:8px 10px;font-size:12px;font-weight:600;color:var(--accent);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;white-space:nowrap}
+.structure-list{flex:1;overflow-y:auto}
+.struct-item{display:flex;align-items:center;padding:5px 10px;cursor:pointer;font-size:12px;color:var(--text2);border-bottom:1px solid var(--border2);gap:4px;transition:background 0.1s}
+.struct-item:hover{background:var(--highlight)}
+.struct-item.active{background:var(--accent);color:#fff}
+.struct-item.active .struct-del{color:rgba(255,255,255,0.6)}
+.struct-item.chapter{font-weight:600;color:var(--accent);background:#ece7dc;padding-left:10px}
+.struct-item.chapter.active{background:var(--accent);color:#fff}
+.struct-item.episode{padding-left:22px;font-size:11px}
+.struct-item.prologue,.struct-item.epilogue{padding-left:10px;font-weight:600}
+.struct-del{margin-left:auto;font-size:10px;color:#ccc;cursor:pointer;padding:2px 3px;display:none;flex-shrink:0}
+.struct-item:hover .struct-del{display:inline}
+.struct-add-row{padding:7px 10px;display:flex;flex-direction:column;gap:4px;border-top:1px solid var(--border);flex-shrink:0}
+.struct-add-row select,.struct-add-row input{font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);width:100%}
+.struct-add-row button{font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text2);cursor:pointer;width:100%}
+.struct-add-row button:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* ======== VERTICAL RESIZER ======== */
+.v-resizer{width:5px;background:var(--surface2);cursor:col-resize;flex-shrink:0;border-left:1px solid var(--border);border-right:1px solid var(--border);transition:background 0.2s;display:flex;align-items:center;justify-content:center}
+.v-resizer:hover,.v-resizer.dragging{background:var(--accent2)}
+.v-resizer-dots{display:flex;flex-direction:column;gap:3px}
+.v-resizer-dot{width:4px;height:4px;border-radius:50%;background:#bbb}
+.v-resizer:hover .v-resizer-dot,.v-resizer.dragging .v-resizer-dot{background:#fff}
+
+/* ======== EDITOR ======== */
+.editor-col{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.editor-toolbar{display:flex;gap:4px;flex-wrap:wrap;align-items:center;padding:6px 10px;border-bottom:1px solid var(--border);background:var(--surface2);flex-shrink:0}
+.tbtn{padding:4px 9px;font-size:11px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text2);cursor:pointer;white-space:nowrap;transition:all 0.15s}
+.tbtn:hover{background:var(--surface2);border-color:var(--accent2);color:var(--accent)}
+.tbtn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.tbtn.primary:hover{background:#2a1d14}
+.tbtn.ai{background:var(--ai);color:#2d6a2d;border-color:var(--ai-border)}
+.tbtn.ai:hover{background:#d4edd4}
+.tbtn-sep{width:1px;height:20px;background:var(--border);margin:0 2px;flex-shrink:0}
+.editor-title-bar{padding:5px 14px;border-bottom:1px solid var(--border2);background:var(--surface);display:flex;align-items:center;gap:8px;flex-shrink:0}
+.editor-title-bar input{font-size:13px;font-weight:500;border:none;background:transparent;color:var(--text);flex:1;outline:none;font-family:inherit}
+.char-count{font-size:11px;color:var(--text3);white-space:nowrap}
+.editor-wrap{flex:1;overflow-y:auto;background:var(--surface);position:relative}
+#editor{width:100%;min-height:100%;font-size:15px;line-height:2.1;padding:18px 24px;border:none;background:transparent;color:var(--text);font-family:'Hiragino Mincho ProN','YuMincho','Georgia',serif;outline:none;resize:none}
+.editor-statusbar{padding:4px 12px;border-top:1px solid var(--border);background:var(--surface2);display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
+.save-st{font-size:11px;color:var(--text2)}
+.ruby-hint{font-size:10px;color:var(--text3);margin-left:auto}
+
+/* ======== AI PANEL ======== */
+.ai-panel{position:absolute;bottom:0;left:0;right:0;background:var(--surface);border-top:2px solid var(--ai-border);padding:10px 14px;display:none;flex-direction:column;gap:8px;max-height:50%;overflow-y:auto;z-index:100;box-shadow:0 -4px 20px rgba(0,0,0,0.1)}
+.ai-panel.open{display:flex}
+.ai-panel-header{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.ai-panel-header span{font-size:12px;font-weight:600;color:#2d6a2d}
+.ai-close{margin-left:auto;border:none;background:none;cursor:pointer;color:var(--text3);font-size:16px;line-height:1;padding:2px}
+.ai-options{display:flex;gap:6px;flex-wrap:wrap}
+.ai-opt{padding:5px 12px;font-size:12px;border:1px solid var(--ai-border);border-radius:20px;background:var(--ai);color:#2d6a2d;cursor:pointer;transition:all 0.15s}
+.ai-opt:hover{background:#2d6a2d;color:#fff}
+.ai-custom-row{display:flex;gap:6px}
+.ai-custom-row input{flex:1;font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:4px;font-family:inherit;outline:none}
+.ai-custom-row input:focus{border-color:var(--ai-border)}
+.ai-custom-row button{padding:5px 12px;font-size:12px;background:#2d6a2d;color:#fff;border:none;border-radius:4px;cursor:pointer}
+.ai-result{background:var(--highlight);border:1px solid var(--border);border-radius:5px;padding:10px 12px;font-size:13px;line-height:1.9;color:var(--text);font-family:'Hiragino Mincho ProN','YuMincho',serif;white-space:pre-wrap;word-break:break-all}
+.ai-result-btns{display:flex;gap:6px;flex-wrap:wrap}
+.ai-result-btn{padding:4px 10px;font-size:11px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text2);cursor:pointer}
+.ai-result-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+.ai-loading{font-size:12px;color:#2d6a2d;display:flex;align-items:center;gap:6px}
+.spinner{width:14px;height:14px;border:2px solid var(--ai-border);border-top-color:#2d6a2d;border-radius:50%;animation:spin 0.7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ======== MODAL ======== */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:none;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:8px;padding:20px;max-width:380px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.25)}
+.modal h3{font-size:14px;font-weight:600;color:var(--accent);margin-bottom:12px}
+.modal p{font-size:12px;line-height:1.8;color:var(--text2);margin-bottom:14px}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end}
+.modal-btns button{padding:6px 14px;font-size:12px;border-radius:4px;cursor:pointer}
+.modal-cancel{border:1px solid var(--border);background:var(--surface);color:var(--text2)}
+.modal-ok{border:none;background:var(--accent);color:#fff}
+
+/* ======== TOAST ======== */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;padding:8px 18px;border-radius:20px;font-size:12px;opacity:0;transition:opacity 0.3s;z-index:2000;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+
+/* ======== iOS SAFE AREA ======== */
+@supports(padding-bottom: env(safe-area-inset-bottom)){
+  .editor-statusbar{padding-bottom:calc(4px + env(safe-area-inset-bottom))}
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+<!-- 上部設定パネル -->
+<div class="top-pane" id="top-pane" style="height:160px">
+  <div class="top-tabs">
+    <button class="ttab active" onclick="showTop('chara')">👤 キャラクター</button>
+    <button class="ttab" onclick="showTop('world')">🌏 世界観</button>
+    <button class="ttab" onclick="showTop('plot')">📋 あらすじ</button>
+    <button class="top-toggle" id="top-toggle-btn" onclick="toggleTopPane()">▲ 閉じる</button>
+  </div>
+
+  <div id="top-chara" class="top-panel active">
+    <div class="char-btns-col" id="char-btns"></div>
+    <div class="img-box" id="char-img-box"
+         ondragover="handleDragOver(event,'char-img-box')"
+         ondragleave="handleDragLeave(event,'char-img-box')"
+         ondrop="handleDrop(event,'char')">
+      <div class="drop-label">クリック・<br>ドロップで<br>画像読込</div>
+      <img id="char-img" alt="" style="display:none">
+      <input type="file" accept="image/*" onchange="loadCharImg(event)">
+    </div>
+    <div class="profile-area">
+      <textarea id="char-profile" placeholder="名前：&#10;年齢：&#10;外見：&#10;性格：&#10;備考：" oninput="saveCharData()"></textarea>
+    </div>
+  </div>
+
+  <div id="top-world" class="top-panel">
+    <div class="world-img" id="world-img-box"
+         ondragover="handleDragOver(event,'world-img-box')"
+         ondragleave="handleDragLeave(event,'world-img-box')"
+         ondrop="handleDrop(event,'world')">
+      <div class="drop-label">クリック・<br>ドロップで<br>画像読込</div>
+      <img id="world-img" alt="" style="display:none">
+      <input type="file" accept="image/*" onchange="loadWorldImg(event)">
+    </div>
+    <div class="world-area">
+      <textarea id="world-text" placeholder="世界観・舞台設定&#10;時代、地理、魔法体系など" oninput="S.set('world-text',this.value)"></textarea>
+    </div>
+  </div>
+
+  <div id="top-plot" class="top-panel">
+    <textarea id="plot-text" placeholder="全体のあらすじ・プロット・構成メモ" oninput="S.set('plot-text',this.value)"></textarea>
+  </div>
+</div>
+
+<!-- 上下リサイザー -->
+<div class="resizer" id="h-resizer">
+  <div class="resizer-dots">
+    <div class="resizer-dot"></div><div class="resizer-dot"></div><div class="resizer-dot"></div>
+  </div>
+</div>
+
+<!-- 下部 -->
+<div class="bottom-pane">
+  <!-- 段落構成 -->
+  <div class="structure-col" id="struct-col">
+    <div class="structure-header">
+      段落構成
+      <span style="cursor:pointer;font-size:15px;color:var(--accent2)" title="追加" onclick="addSection()">＋</span>
+    </div>
+    <div class="structure-list" id="struct-list"></div>
+    <div class="struct-add-row">
+      <select id="add-type">
+        <option value="prologue">序章</option>
+        <option value="chapter">第○章</option>
+        <option value="episode" selected>第○話</option>
+        <option value="epilogue">エピローグ</option>
+        <option value="extra">番外編</option>
+        <option value="memo">メモ</option>
+      </select>
+      <input type="text" id="add-label" placeholder="タイトル（省略可）">
+      <button onclick="addSection()">＋ 追加</button>
+    </div>
+  </div>
+
+  <!-- 左右リサイザー -->
+  <div class="v-resizer" id="v-resizer">
+    <div class="v-resizer-dots">
+      <div class="v-resizer-dot"></div><div class="v-resizer-dot"></div><div class="v-resizer-dot"></div>
+    </div>
+  </div>
+
+  <!-- エディタ -->
+  <div class="editor-col">
+    <div class="editor-toolbar">
+      <button class="tbtn" onclick="insertRuby()">｜《ふりがな》</button>
+      <button class="tbtn" onclick="insertIndent()">段落↵</button>
+      <button class="tbtn" onclick="insertDash()">――</button>
+      <button class="tbtn" onclick="insertDot()">……</button>
+      <div class="tbtn-sep"></div>
+      <button class="tbtn ai" onclick="toggleAI()">✨ AIアシスト</button>
+      <div class="tbtn-sep"></div>
+      <button class="tbtn" onclick="copyForNarou()">なろうコピー</button>
+      <button class="tbtn" onclick="copyForKakuyomu()">カクヨムコピー</button>
+      <div class="tbtn-sep"></div>
+      <button class="tbtn primary" onclick="saveAsFile()">💾 ファイル保存</button>
+      <button class="tbtn" onclick="exportAll()">📦 全話保存</button>
+    </div>
+    <div class="editor-title-bar">
+      <input type="text" id="section-title-input" placeholder="サブタイトル（任意）" oninput="saveSectionTitle()">
+      <span class="char-count" id="char-count">0文字</span>
+    </div>
+    <div class="editor-wrap" id="editor-wrap">
+      <textarea id="editor" placeholder="ここに本文を書きます。&#10;&#10;ふりがな記法：｜桜《さくら》の木の下で" oninput="autoSave();updateCount()"></textarea>
+      <!-- AI パネル -->
+      <div class="ai-panel" id="ai-panel">
+        <div class="ai-panel-header">
+          <span>✨ AIアシスト</span>
+          <button class="ai-close" onclick="toggleAI()">✕</button>
+        </div>
+        <div class="ai-options" id="ai-options">
+          <button class="ai-opt" onclick="runAI('続き')">続きを書く</button>
+          <button class="ai-opt" onclick="runAI('推敲')">推敲・改善</button>
+          <button class="ai-opt" onclick="runAI('要約')">あらすじ要約</button>
+          <button class="ai-opt" onclick="runAI('キャラセリフ')">キャラのセリフ案</button>
+          <button class="ai-opt" onclick="runAI('描写強化')">情景描写を強化</button>
+        </div>
+        <div class="ai-custom-row">
+          <input type="text" id="ai-custom-input" placeholder="自由に指示（例：緊張感を高めて）">
+          <button onclick="runAICustom()">実行</button>
+        </div>
+        <div id="ai-output"></div>
+      </div>
+    </div>
+    <div class="editor-statusbar">
+      <span class="save-st" id="save-status">未保存</span>
+      <span class="ruby-hint">ふりがな：｜漢字《かな》</span>
+    </div>
+  </div>
+</div>
+
+<!-- 削除確認モーダル -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h3>削除の確認</h3>
+    <p id="modal-msg"></p>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeModal()">キャンセル</button>
+      <button class="modal-ok" id="modal-ok-btn">削除する</button>
+    </div>
+  </div>
+</div>
+
+<!-- トースト -->
+<div class="toast" id="toast"></div>
+
+</div>
+
+<script>
+// ======== STORAGE ========
+var S={
+  get:function(k){try{return localStorage.getItem(k)}catch(e){return null}},
+  set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}},
+  del:function(k){try{localStorage.removeItem(k)}catch(e){}}
+};
+
+// ======== TOAST ========
+function showToast(msg,dur){
+  var t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('show')},(dur||2200));
+}
+
+// ======== TOP PANE TOGGLE ========
+var topCollapsed=false;
+var topHeight=160;
+function toggleTopPane(){
+  topCollapsed=!topCollapsed;
+  var pane=document.getElementById('top-pane');
+  var btn=document.getElementById('top-toggle-btn');
+  if(topCollapsed){
+    topHeight=pane.offsetHeight||topHeight;
+    pane.classList.add('collapsed');
+    pane.style.height='36px';
+    btn.textContent='▼ 設定を開く';
+  } else {
+    pane.classList.remove('collapsed');
+    pane.style.height=topHeight+'px';
+    btn.textContent='▲ 閉じる';
+  }
+}
+
+// ======== TOP TABS ========
+function showTop(t){
+  var ids=['chara','world','plot'];
+  var tabs=document.querySelectorAll('.ttab');
+  for(var i=0;i<ids.length;i++){
+    var panel=document.getElementById('top-'+ids[i]);
+    var tab=tabs[i];
+    if(ids[i]===t){
+      panel.style.display=(t==='plot')?'block':'flex';
+      tab.classList.add('active');
+    } else {
+      panel.style.display='none';
+      tab.classList.remove('active');
+    }
+  }
+}
+
+// ======== HORIZONTAL RESIZER ========
+(function(){
+  var res=document.getElementById('h-resizer');
+  var pane=document.getElementById('top-pane');
+  var dragging=false,startY=0,startH=0;
+  function onStart(e){
+    if(topCollapsed)return;
+    dragging=true;res.classList.add('dragging');
+    startY=(e.touches?e.touches[0].clientY:e.clientY);
+    startH=pane.offsetHeight;
+    e.preventDefault();
+  }
+  function onMove(e){
+    if(!dragging)return;
+    var y=(e.touches?e.touches[0].clientY:e.clientY);
+    var newH=Math.max(40,Math.min(300,startH+(y-startY)));
+    pane.style.height=newH+'px';
+    topHeight=newH;
+  }
+  function onEnd(){dragging=false;res.classList.remove('dragging')}
+  res.addEventListener('mousedown',onStart);
+  res.addEventListener('touchstart',onStart,{passive:false});
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('touchmove',onMove,{passive:false});
+  document.addEventListener('mouseup',onEnd);
+  document.addEventListener('touchend',onEnd);
+})();
+
+// ======== VERTICAL RESIZER ========
+(function(){
+  var res=document.getElementById('v-resizer');
+  var col=document.getElementById('struct-col');
+  var dragging=false,startX=0,startW=0;
+  function onStart(e){
+    dragging=true;res.classList.add('dragging');
+    startX=(e.touches?e.touches[0].clientX:e.clientX);
+    startW=col.offsetWidth;
+    e.preventDefault();
+  }
+  function onMove(e){
+    if(!dragging)return;
+    var x=(e.touches?e.touches[0].clientX:e.clientX);
+    var newW=Math.max(0,Math.min(320,startW+(x-startX)));
+    if(newW<40){newW=0;col.classList.add('collapsed');}
+    else{col.classList.remove('collapsed');col.style.width=newW+'px';col.style.minWidth=newW+'px';}
+  }
+  function onEnd(){dragging=false;res.classList.remove('dragging');}
+  res.addEventListener('mousedown',onStart);
+  res.addEventListener('touchstart',onStart,{passive:false});
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('touchmove',onMove,{passive:false});
+  document.addEventListener('mouseup',onEnd);
+  document.addEventListener('touchend',onEnd);
+})();
+
+// ======== CHARACTERS ========
+var CHAR_COUNT=5;
+var curChar=0;
+function buildCharBtns(){
+  var g=document.getElementById('char-btns');g.innerHTML='';
+  for(var i=0;i<CHAR_COUNT;i++){
+    (function(idx){
+      var b=document.createElement('button');
+      b.className='cbtn'+(idx===curChar?' active':'');
+      b.textContent=S.get('char-name-'+idx)||('キャラ'+(idx+1));
+      b.onclick=function(){selectChar(idx);};g.appendChild(b);
+    })(i);
+  }
+}
+function selectChar(i){
+  saveCharNow();curChar=i;
+  document.querySelectorAll('.cbtn').forEach(function(b,j){b.classList.toggle('active',j===i);});
+  document.getElementById('char-profile').value=S.get('char-profile-'+i)||'';
+  setImg(document.getElementById('char-img'),S.get('char-img-'+i));
+}
+function saveCharNow(){S.set('char-profile-'+curChar,document.getElementById('char-profile').value);}
+function saveCharData(){
+  saveCharNow();
+  var first=document.getElementById('char-profile').value.split('\n')[0];
+  if(first.indexOf('名前：')===0){
+    var n=first.replace('名前：','').trim();
+    if(n){S.set('char-name-'+curChar,n);buildCharBtns();}
+  }
+}
+function loadCharImg(e){readImgFile(e.target.files[0],'char');}
+function loadWorldImg(e){readImgFile(e.target.files[0],'world');}
+function readImgFile(f,type){
+  if(!f)return;
+  var r=new FileReader();
+  r.onload=function(ev){
+    if(type==='char'){S.set('char-img-'+curChar,ev.target.result);setImg(document.getElementById('char-img'),ev.target.result);}
+    else{S.set('world-img',ev.target.result);setImg(document.getElementById('world-img'),ev.target.result);}
+  };r.readAsDataURL(f);
+}
+function setImg(el,src){if(src){el.src=src;el.style.display='block';}else{el.style.display='none';}}
+function handleDragOver(e,id){e.preventDefault();document.getElementById(id).classList.add('dragover');}
+function handleDragLeave(e,id){document.getElementById(id).classList.remove('dragover');}
+function handleDrop(e,type){
+  e.preventDefault();
+  document.getElementById(type==='char'?'char-img-box':'world-img-box').classList.remove('dragover');
+  var f=e.dataTransfer.files[0];
+  if(f&&f.type.indexOf('image/')===0)readImgFile(f,type);
+}
+
+// ======== SECTIONS ========
+var sections=[];
+var curSectionId=null;
+function loadSections(){
+  var raw=S.get('sections');
+  if(raw){try{sections=JSON.parse(raw);}catch(e){sections=[];}}
+  if(!sections.length){
+    sections=[
+      {id:'prologue-0',type:'prologue',label:'序章',title:'',text:''},
+      {id:'chapter-0',type:'chapter',label:'第1章',title:'',text:''},
+      {id:'episode-0',type:'episode',label:'第1話',title:'',text:''},
+      {id:'episode-1',type:'episode',label:'第2話',title:'',text:''}
+    ];
+    saveSections();
+  }
+}
+function saveSections(){S.set('sections',JSON.stringify(sections));}
+function getSection(id){for(var i=0;i<sections.length;i++){if(sections[i].id===id)return sections[i];}return null;}
+function buildStructList(){
+  var el=document.getElementById('struct-list');el.innerHTML='';
+  for(var i=0;i<sections.length;i++){
+    (function(s){
+      var div=document.createElement('div');
+      div.className='struct-item '+s.type+(s.id===curSectionId?' active':'');
+      var label=s.label+(s.title?' — '+s.title:'');
+      div.innerHTML='<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(label)+'</span>'
+        +'<span class="struct-del" data-id="'+s.id+'">✕</span>';
+      div.querySelector('.struct-del').onclick=function(e){e.stopPropagation();confirmDeleteSection(s.id);};
+      div.onclick=function(){selectSection(s.id);};
+      el.appendChild(div);
+    })(sections[i]);
+  }
+}
+function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function selectSection(id){
+  saveCurrentSection();curSectionId=id;
+  var s=getSection(id);if(!s)return;
+  document.getElementById('editor').value=s.text||'';
+  document.getElementById('section-title-input').value=s.title||'';
+  updateCount();buildStructList();
+  document.getElementById('save-status').textContent='「'+s.label+'」を表示中';
+}
+function saveCurrentSection(){
+  if(!curSectionId)return;
+  var s=getSection(curSectionId);if(!s)return;
+  s.text=document.getElementById('editor').value;
+  s.title=document.getElementById('section-title-input').value;
+  saveSections();
+}
+function saveSectionTitle(){
+  if(!curSectionId)return;
+  var s=getSection(curSectionId);if(!s)return;
+  s.title=document.getElementById('section-title-input').value;
+  saveSections();buildStructList();
+}
+function addSection(){
+  var type=document.getElementById('add-type').value;
+  var userLabel=document.getElementById('add-label').value.trim();
+  var id=type+'-'+Date.now();
+  sections.push({id:id,type:type,label:userLabel||buildAutoLabel(type),title:'',text:''});
+  saveSections();buildStructList();
+  document.getElementById('add-label').value='';
+  selectSection(id);
+}
+function buildAutoLabel(type){
+  var n=0;
+  for(var i=0;i<sections.length;i++){if(sections[i].type===type)n++;}n++;
+  var map={prologue:'序章',chapter:'第'+n+'章',episode:'第'+n+'話',epilogue:'エピローグ',extra:'番外編'+n,memo:'メモ'+n};
+  return map[type]||('項目'+n);
+}
+
+// ======== MODAL DELETE ========
+var pendingDeleteId=null;
+function confirmDeleteSection(id){
+  var s=getSection(id);if(!s)return;
+  pendingDeleteId=id;
+  document.getElementById('modal-msg').textContent='「'+s.label+'」を削除しますか？この操作は取り消せません。';
+  document.getElementById('modal-overlay').classList.add('open');
+  document.getElementById('modal-ok-btn').onclick=function(){doDeleteSection();closeModal();};
+}
+function doDeleteSection(){
+  var id=pendingDeleteId;if(!id)return;
+  for(var i=0;i<sections.length;i++){if(sections[i].id===id){sections.splice(i,1);break;}}
+  if(curSectionId===id)curSectionId=sections.length?sections[0].id:null;
+  saveSections();buildStructList();
+  if(curSectionId)selectSection(curSectionId);
+}
+function closeModal(){document.getElementById('modal-overlay').classList.remove('open');pendingDeleteId=null;}
+document.getElementById('modal-overlay').onclick=function(e){if(e.target===this)closeModal();};
+
+// ======== EDITOR ========
+var saveTimer=null;
+function autoSave(){
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(function(){
+    saveCurrentSection();
+    var t=new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('save-status').textContent='自動保存 '+t;
+  },1500);
+}
+function updateCount(){
+  var n=document.getElementById('editor').value.length;
+  document.getElementById('char-count').textContent=n.toLocaleString()+'文字';
+}
+function insertAt(str){
+  var ta=document.getElementById('editor');
+  var s=ta.selectionStart,e=ta.selectionEnd;
+  ta.value=ta.value.substring(0,s)+str+ta.value.substring(e);
+  ta.selectionStart=ta.selectionEnd=s+str.length;
+  ta.focus();autoSave();updateCount();
+}
+function insertRuby(){
+  var ta=document.getElementById('editor');
+  var s=ta.selectionStart,e=ta.selectionEnd;
+  var sel=ta.value.substring(s,e)||'漢字';
+  var before=ta.value.substring(0,s);
+  var after=ta.value.substring(e);
+  ta.value=before+'｜'+sel+'《かな》'+after;
+  ta.selectionStart=ta.selectionEnd=s+sel.length+6;
+  ta.focus();autoSave();
+}
+function insertIndent(){insertAt('\n\n　');}
+function insertDash(){insertAt('――');}
+function insertDot(){insertAt('……');}
+
+// ======== ファイル保存（iPhone対応） ========
+// iPhoneではBlob URLダウンロードが動作しないため、
+// テキストをdata: URIでダウンロードする
+function saveAsFile(){
+  if(!curSectionId){showToast('セクションを選択してください');return;}
+  saveCurrentSection();
+  var s=getSection(curSectionId);
+  var text=s.text||'';
+  var filename=(s.label+(s.title?'_'+s.title:''))+'.txt';
+  downloadText(filename,text);
+}
+function exportAll(){
+  saveCurrentSection();
+  var out='';
+  for(var i=0;i<sections.length;i++){
+    var s=sections[i];
+    out+='【'+s.label+(s.title?' — '+s.title:'')+'】\n\n'+(s.text||'')+'\n\n\n';
+  }
+  downloadText('小説_全文.txt',out);
+}
+function downloadText(filename,text){
+  // BOM付きUTF-8にして文字化けを防ぐ
+  var bom='\uFEFF';
+  // data: URI方式（iOSでも動作）
+  var dataUri='data:text/plain;charset=utf-8,'+encodeURIComponent(bom+text);
+  var a=document.createElement('a');
+  a.href=dataUri;
+  a.download=filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  showToast('💾 「'+filename+'」を保存しました');
+}
+
+// ======== なろうコピー ========
+// なろう：ルビ記法 |漢字《かな》  傍点 《《文字》》  太字 【文字】
+function copyForNarou(){
+  if(!curSectionId)return;
+  saveCurrentSection();
+  var s=getSection(curSectionId);
+  // ｜漢字《かな》→ |漢字《かな》（縦棒を半角に）
+  var txt=(s.text||'').replace(/｜/g,'|');
+  copyToClipboard(txt,'✅ なろう用テキストをコピーしました\n（ふりがな記法：|漢字《かな》）');
+}
+
+// ======== カクヨムコピー ========
+// カクヨム：ルビ記法 |漢字《かな》（なろうと同じ）
+// ただし縦棒は全角｜でもOK。傍点は《《文字》》、太字は**文字**
+function copyForKakuyomu(){
+  if(!curSectionId)return;
+  saveCurrentSection();
+  var s=getSection(curSectionId);
+  // カクヨムは｜（全角縦棒）もOKだが念のため半角に統一
+  var txt=(s.text||'').replace(/｜/g,'|');
+  copyToClipboard(txt,'✅ カクヨム用テキストをコピーしました\n（ふりがな記法：|漢字《かな》）');
+}
+function copyToClipboard(txt,msg){
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(function(){showToast(msg);}).catch(function(){fallbackCopy(txt,msg);});
+  } else {
+    fallbackCopy(txt,msg);
+  }
+}
+function fallbackCopy(txt,msg){
+  var ta=document.createElement('textarea');
+  ta.value=txt;ta.style.cssText='position:fixed;top:-999px;opacity:0';
+  document.body.appendChild(ta);ta.focus();ta.select();
+  try{document.execCommand('copy');showToast(msg);}
+  catch(e){showToast('コピーできませんでした');}
+  document.body.removeChild(ta);
+}
+
+// ======== AI アシスト ========
+var aiOpen=false;
+var lastAIResult='';
+function toggleAI(){
+  aiOpen=!aiOpen;
+  document.getElementById('ai-panel').classList.toggle('open',aiOpen);
+  if(aiOpen)document.getElementById('ai-output').innerHTML='';
+}
+function buildAIContext(){
+  var ctx='';
+  // キャラ情報
+  for(var i=0;i<CHAR_COUNT;i++){
+    var p=S.get('char-profile-'+i);
+    var n=S.get('char-name-'+i)||('キャラ'+(i+1));
+    if(p&&p.trim())ctx+='【キャラクター '+n+'】\n'+p+'\n\n';
+  }
+  // 世界観
+  var w=S.get('world-text');if(w&&w.trim())ctx+='【世界観・設定】\n'+w+'\n\n';
+  // あらすじ
+  var pl=S.get('plot-text');if(pl&&pl.trim())ctx+='【全体あらすじ】\n'+pl+'\n\n';
+  return ctx;
+}
+async function runAI(mode){
+  var text=document.getElementById('editor').value;
+  if(!text.trim()&&mode!=='続き'){showToast('本文を入力してください');return;}
+  var prompts={
+    '続き':'以下の小説の文章の続きを自然な流れで書いてください。同じ文体・語調を維持してください。続きの文章のみを出力してください。\n\n',
+    '推敲':'以下の小説の文章を推敲・改善してください。文体は変えず、表現をより豊かにしてください。改善後の文章のみを出力してください。\n\n',
+    '要約':'以下の小説の文章のあらすじを200字以内で要約してください。\n\n',
+    'キャラセリフ':'以下の場面のキャラクターが発しそうなセリフを3つ提案してください。キャラクターの性格を考慮してください。\n\n',
+    '描写強化':'以下の文章の情景描写・感情描写をより豊かにしてください。改善後の文章のみを出力してください。\n\n'
+  };
+  var userPrompt=(prompts[mode]||mode+'してください。\n\n')
+    +'【本文】\n'+text.slice(-1500);
+  var systemPrompt='あなたは日本語小説の執筆アシスタントです。\n'+buildAIContext();
+  await callAI(systemPrompt,userPrompt,mode);
+}
+async function runAICustom(){
+  var instr=document.getElementById('ai-custom-input').value.trim();
+  if(!instr){showToast('指示を入力してください');return;}
+  var text=document.getElementById('editor').value;
+  var userPrompt=instr+'\n\n【本文】\n'+text.slice(-1500);
+  var systemPrompt='あなたは日本語小説の執筆アシスタントです。\n'+buildAIContext();
+  await callAI(systemPrompt,userPrompt,instr);
+}
+async function callAI(systemPrompt,userPrompt,mode){
+  var output=document.getElementById('ai-output');
+  output.innerHTML='<div class="ai-loading"><div class="spinner"></div>'+escHtml(mode)+'を生成中...</div>';
+  try{
+    var resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        system:systemPrompt,
+        messages:[{role:'user',content:userPrompt}]
+      })
+    });
+    var data=await resp.json();
+    var result=(data.content||[]).map(function(c){return c.text||'';}).join('');
+    lastAIResult=result;
+    output.innerHTML='<div class="ai-result">'+escHtml(result)+'</div>'
+      +'<div class="ai-result-btns">'
+      +(mode==='続き'||mode==='推敲'||mode==='描写強化'
+        ?'<button class="ai-result-btn" onclick="applyAIResult(\'append\')">末尾に追加</button>'
+         +'<button class="ai-result-btn" onclick="applyAIResult(\'replace\')">全文と置き換え</button>'
+        :'')
+      +'<button class="ai-result-btn" onclick="copyAIResult()">コピー</button>'
+      +'</div>';
+  }catch(e){
+    output.innerHTML='<div class="ai-result" style="color:#c0392b">エラーが発生しました。しばらく経ってから再試行してください。</div>';
+  }
+}
+function applyAIResult(mode){
+  var ta=document.getElementById('editor');
+  if(mode==='append'){ta.value=ta.value+'\n\n'+lastAIResult;}
+  else if(mode==='replace'){ta.value=lastAIResult;}
+  autoSave();updateCount();
+  showToast('本文に反映しました');
+}
+function copyAIResult(){
+  copyToClipboard(lastAIResult,'AI生成テキストをコピーしました');
+}
+
+// ======== INIT ========
+loadSections();
+buildStructList();
+if(sections.length)selectSection(sections[0].id);
+buildCharBtns();selectChar(0);
+var wt=S.get('world-text');if(wt)document.getElementById('world-text').value=wt;
+var wi=S.get('world-img');if(wi)setImg(document.getElementById('world-img'),wi);
+var pt=S.get('plot-text');if(pt)document.getElementById('plot-text').value=pt;
+updateCount();
+</script>
+</body>
+</html>
