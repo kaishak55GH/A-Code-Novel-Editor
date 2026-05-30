@@ -184,6 +184,12 @@ body.dark .ai-loading{color:#8fca8f}
 .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;padding:9px 20px;border-radius:20px;font-size:13px;font-weight:700;opacity:0;transition:opacity 0.3s;z-index:2000;pointer-events:none;white-space:nowrap;max-width:90vw;text-align:center}
 .toast.show{opacity:1}
 
+/* ===== INLINE RENAME ===== */
+.struct-item .label-text{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.struct-item .label-text:hover{text-decoration:underline dotted}
+.struct-item .rename-input{flex:1;font-size:12px;font-weight:700;padding:1px 4px;border:1px solid var(--accent2);border-radius:3px;background:var(--surface);color:var(--text);outline:none;min-width:0;font-family:var(--font-ui)}
+.rename-hint{font-size:10px;color:var(--text3);padding:2px 10px 4px;font-weight:500}
+
 /* iOS safe area */
 @supports(padding-bottom:env(safe-area-inset-bottom)){
   .editor-statusbar{padding-bottom:calc(5px + env(safe-area-inset-bottom))}
@@ -257,6 +263,7 @@ body.dark .ai-loading{color:#8fca8f}
       <span style="cursor:pointer;font-size:16px;color:var(--accent2)" title="追加" onclick="addSection()">＋</span>
     </div>
     <div class="structure-list" id="struct-list"></div>
+    <div class="rename-hint">✏️ 名前をダブルクリックで変更</div>
     <div class="struct-add-row" id="struct-add-row">
       <select id="add-type">
         <option value="prologue">序章</option>
@@ -559,17 +566,38 @@ function loadSections(){
   var raw=S.get('sections');
   if(raw){try{sections=JSON.parse(raw);}catch(e){sections=[];}}
   if(!sections.filter(function(s){return !s.isEpisode;}).length){
-    sections=sections.filter(function(s){return s.isEpisode;});
-    sections.unshift(
-      {id:'episode-1',type:'episode',label:'第2話',title:'',text:'',isEpisode:false},
-      {id:'chapter-0',type:'chapter',label:'第1章',title:'',text:'',isEpisode:false},
-      {id:'prologue-0',type:'prologue',label:'序章',title:'',text:'',isEpisode:false}
-    );
+    // 初期データ：正しい順序で push
+    var eps=sections.filter(function(s){return s.isEpisode;});
+    sections=[
+      {id:'prologue-0',type:'prologue',label:'序章',title:'',text:'',isEpisode:false},
+      {id:'chapter-0', type:'chapter', label:'第1章',title:'',text:'',isEpisode:false},
+      {id:'episode-0', type:'episode', label:'第1話',title:'',text:'',isEpisode:false}
+    ].concat(eps);
     saveSections();
   }
 }
 function saveSections(){S.set('sections',JSON.stringify(sections));}
 function getSection(id){for(var i=0;i<sections.length;i++){if(sections[i].id===id)return sections[i];}return null;}
+
+function buildAutoLabel(type,isEp){
+  // 同じモード・同じ種別のセクションが何個あるか数える
+  var n=sections.filter(function(s){
+    return s.isEpisode===isEp && s.type===type;
+  }).length + 1;
+  if(isEp){
+    var m={episode:'エピソード',other:'エピソード',flash:'回想',battle:'戦闘',romance:'恋愛',memory:'夢',extra:'番外'};
+    return (m[type]||'エピソード')+n;
+  }
+  var map={
+    prologue: n===1?'序章':'序章'+n,
+    chapter:  '第'+n+'章',
+    episode:  '第'+n+'話',
+    epilogue: n===1?'エピローグ':'エピローグ'+n,
+    extra:    '番外編'+n,
+    memo:     'メモ'+n
+  };
+  return map[type]||('項目'+n);
+}
 
 function buildStructList(){
   var el=document.getElementById('struct-list');el.innerHTML='';
@@ -582,14 +610,65 @@ function buildStructList(){
       if(s.isEpisode&&s.epType&&s.epType!=='other'){
         tagHtml='<span class="ep-tag '+s.epType+'">'+EP_TAGS[s.epType]+'</span>';
       }
-      var label=s.label+(s.title?' — '+s.title:'');
-      div.innerHTML='<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(label)+'</span>'
-        +tagHtml+'<span class="struct-del">✕</span>';
-      div.querySelector('.struct-del').onclick=function(e){e.stopPropagation();confirmDeleteSection(s.id);};
-      div.onclick=function(){selectSection(s.id);};
+      // ラベルテキスト
+      var labelSpan=document.createElement('span');
+      labelSpan.className='label-text';
+      labelSpan.title='ダブルクリックで名前を変更';
+      labelSpan.textContent=s.label+(s.title?' — '+s.title:'');
+      div.appendChild(labelSpan);
+      if(tagHtml){div.insertAdjacentHTML('beforeend',tagHtml);}
+      var delBtn=document.createElement('span');
+      delBtn.className='struct-del';delBtn.textContent='✕';
+      delBtn.addEventListener('click',function(e){e.stopPropagation();confirmDeleteSection(s.id);});
+      div.appendChild(delBtn);
+
+      // クリック／ダブルクリックの競合を防ぐためタイマー制御
+      var clickTimer=null;
+      div.addEventListener('click',function(e){
+        if(div.querySelector('.rename-input'))return; // 編集中は無視
+        clearTimeout(clickTimer);
+        clickTimer=setTimeout(function(){selectSection(s.id);},220);
+      });
+      div.addEventListener('dblclick',function(e){
+        clearTimeout(clickTimer); // シングルクリック処理をキャンセル
+        e.preventDefault();
+        startRename(div,s,labelSpan);
+      });
+
       el.appendChild(div);
     })(list[i]);
   }
+}
+
+function startRename(div,s,labelSpan){
+  if(div.querySelector('.rename-input'))return;
+  var input=document.createElement('input');
+  input.className='rename-input';
+  input.value=s.label;
+  input.placeholder='名前を入力してEnter';
+  div.replaceChild(input,labelSpan);
+  // 少し待ってからfocus（再描画完了を待つ）
+  setTimeout(function(){input.focus();input.select();},30);
+
+  var committed=false;
+  function commit(){
+    if(committed)return;
+    committed=true;
+    var v=input.value.trim();
+    if(v)s.label=v;
+    saveSections();
+    buildStructList();
+    if(curSectionId===s.id)
+      document.getElementById('save-status').textContent='「'+s.label+'」を表示中';
+  }
+  input.addEventListener('keydown',function(e){
+    e.stopPropagation();
+    if(e.key==='Enter'){e.preventDefault();commit();}
+    if(e.key==='Escape'){committed=true;buildStructList();}
+  });
+  input.addEventListener('blur',commit);
+  input.addEventListener('click',function(e){e.stopPropagation();});
+  input.addEventListener('dblclick',function(e){e.stopPropagation();});
 }
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
@@ -600,6 +679,11 @@ function selectSection(id){
   document.getElementById('section-title-input').value=s.title||'';
   updateCount();buildStructList();
   document.getElementById('save-status').textContent='「'+s.label+'」を表示中';
+  // ＋ボタンのセレクトを現在の種別に同期（エピソードモード以外）
+  if(storyMode!=='episode'){
+    var sel=document.getElementById('add-type');
+    if(sel.querySelector('option[value="'+s.type+'"]')) sel.value=s.type;
+  }
 }
 function saveCurrentSection(){
   if(!curSectionId)return;
@@ -616,20 +700,28 @@ function saveSectionTitle(){
 }
 function addSection(){
   var isEp=(storyMode==='episode');
-  var type=isEp?'episode':document.getElementById('add-type').value;
   var epType=isEp?document.getElementById('add-ep-type').value:'other';
   var userLabel=document.getElementById('add-label').value.trim();
+
+  // 現在選択中のセクションの種別を引き継ぐ（エピソードモード以外）
+  var type;
+  if(isEp){
+    type='episode';
+  } else {
+    var cur=getSection(curSectionId);
+    // 現在選択中があればその種別、なければセレクトの値
+    type=(cur&&!cur.isEpisode)?cur.type:document.getElementById('add-type').value;
+    // セレクトをその種別に同期
+    var sel=document.getElementById('add-type');
+    if(sel.querySelector('option[value="'+type+'"]')) sel.value=type;
+  }
+
   var id=type+'-'+Date.now();
   var s={id:id,type:type,label:userLabel||buildAutoLabel(type,isEp),title:'',text:'',isEpisode:isEp,epType:epType};
   sections.push(s);saveSections();buildStructList();
   document.getElementById('add-label').value='';
   selectSection(id);
-}
-function buildAutoLabel(type,isEp){
-  var n=sections.filter(function(s){return s.isEpisode===isEp&&s.type===type;}).length+1;
-  if(isEp){var m={episode:'エピソード',other:'エピソード',flash:'回想',battle:'戦闘',romance:'恋愛',memory:'夢',extra:'番外'};return (m[type]||'エピソード')+n;}
-  var map={prologue:'序章',chapter:'第'+n+'章',episode:'第'+n+'話',epilogue:'エピローグ',extra:'番外編'+n,memo:'メモ'+n};
-  return map[type]||('項目'+n);
+  showToast('「'+s.label+'」を追加しました');
 }
 
 // 削除確認
@@ -694,13 +786,20 @@ function saveAsFile(){
   if(!curSectionId){showToast('セクションを選択してください');return;}
   saveCurrentSection();
   var s=getSection(curSectionId);
-  downloadText((s.label+(s.title?'_'+s.title:''))+'.txt',s.text||'');
+  var heading=sectionHeading(s);
+  var content='【'+heading+'】\n\n'+(s.text||'');
+  var filename=heading.replace(/[\/\\:*?"<>|]/g,'_')+'.txt';
+  downloadText(filename,content);
+}
+function sectionHeading(s){
+  // ラベル（具体名）＋サブタイトルを見出しに使う
+  return s.label+(s.title?' ── '+s.title:'');
 }
 function exportAll(){
   saveCurrentSection();
   var out='';
   sections.filter(function(s){return !s.isEpisode;}).forEach(function(s){
-    out+='【'+s.label+(s.title?' — '+s.title:'')+'】\n\n'+(s.text||'')+'\n\n\n';
+    out+='【'+sectionHeading(s)+'】\n\n'+(s.text||'')+'\n\n\n';
   });
   downloadText('小説_本編_全文.txt',out);
 }
@@ -708,18 +807,16 @@ function exportAll(){
 // 全文＋設定ファイル同時保存
 function exportAllWithSettings(){
   saveCurrentSection();
-  // 本文ファイル
   var out='';
   sections.filter(function(s){return !s.isEpisode;}).forEach(function(s){
-    out+='【'+s.label+(s.title?' — '+s.title:'')+'】\n\n'+(s.text||'')+'\n\n\n';
+    out+='【'+sectionHeading(s)+'】\n\n'+(s.text||'')+'\n\n\n';
   });
-  // エピソードも追記
   var eps=sections.filter(function(s){return s.isEpisode;});
   if(eps.length){
     out+='===== エピソード =====\n\n';
     eps.forEach(function(s){
       var tag=s.epType?('['+( EP_TAGS[s.epType]||s.epType)+'] '):'';
-      out+=tag+'【'+s.label+(s.title?' — '+s.title:'')+'】\n\n'+(s.text||'')+'\n\n\n';
+      out+=tag+'【'+sectionHeading(s)+'】\n\n'+(s.text||'')+'\n\n\n';
     });
   }
   downloadText('小説_全文.txt',out);
