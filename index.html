@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>小説執筆エディタ v3</title>
+<title>小説執筆エディタ v4</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -190,6 +190,13 @@ body.dark .ai-loading{color:#8fca8f}
 .struct-item .rename-input{flex:1;font-size:12px;font-weight:700;padding:1px 4px;border:1px solid var(--accent2);border-radius:3px;background:var(--surface);color:var(--text);outline:none;min-width:0;font-family:var(--font-ui)}
 .rename-hint{font-size:10px;color:var(--text3);padding:2px 10px 4px;font-weight:500}
 
+/* ===== SAVE MODAL ===== */
+.save-modal{max-width:92vw;width:680px;display:flex;flex-direction:column;gap:8px;max-height:88vh}
+.save-modal-header{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.save-modal-header h3{font-size:14px;font-weight:700;color:var(--accent);white-space:nowrap}
+.save-modal-hint{font-size:12px;font-weight:500;color:var(--text3);background:var(--highlight);padding:6px 10px;border-radius:4px;line-height:1.6}
+.save-modal-textarea{flex:1;min-height:200px;max-height:55vh;resize:vertical;font-size:13px;font-weight:500;line-height:1.8;padding:10px;border:1px solid var(--border);border-radius:5px;background:var(--surface2);color:var(--text);font-family:var(--font-editor);width:100%}
+
 /* iOS safe area */
 @supports(padding-bottom:env(safe-area-inset-bottom)){
   .editor-statusbar{padding-bottom:calc(5px + env(safe-area-inset-bottom))}
@@ -308,6 +315,8 @@ body.dark .ai-loading{color:#8fca8f}
       <button class="tbtn" onclick="exportAll()">📦 全話</button>
       <button class="tbtn" onclick="exportAllWithSettings()">📦+設定</button>
       <div class="tbtn-sep"></div>
+      <button class="tbtn" onclick="openDataModal()" title="バックアップ・復元・リセット">🗂️ データ</button>
+      <div class="tbtn-sep"></div>
       <button class="tbtn" id="dark-btn" onclick="toggleDark()">🌙 夜</button>
       <button class="tbtn" id="font-btn" onclick="cycleFontSize()">文字 A</button>
     </div>
@@ -343,7 +352,7 @@ body.dark .ai-loading{color:#8fca8f}
   </div>
 </div>
 
-<!-- モーダル -->
+<!-- モーダル（削除確認） -->
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal">
     <h3>削除の確認</h3>
@@ -354,6 +363,76 @@ body.dark .ai-loading{color:#8fca8f}
     </div>
   </div>
 </div>
+
+<!-- 保存モーダル（iPhone対応：テキスト表示＋コピー） -->
+<div class="modal-overlay" id="save-modal-overlay">
+  <div class="modal save-modal">
+    <div class="save-modal-header">
+      <h3 id="save-modal-title">保存テキスト</h3>
+      <div style="display:flex;gap:6px;margin-left:auto">
+        <button class="tbtn primary" id="save-modal-copy-btn" onclick="savemodalCopy()">📋 全文コピー</button>
+        <button class="tbtn" id="save-modal-dl-btn" onclick="savemodalDownload()">💾 ダウンロード</button>
+        <button class="tbtn" onclick="closeSaveModal()" style="padding:4px 8px">✕</button>
+      </div>
+    </div>
+    <p class="save-modal-hint">iPhoneの場合：「全文コピー」→ メモ帳などに貼り付けて保存してください</p>
+    <textarea id="save-modal-text" class="save-modal-textarea" readonly></textarea>
+  </div>
+</div>
+
+<!-- データ管理モーダル -->
+<div class="modal-overlay" id="data-modal-overlay">
+  <div class="modal" style="max-width:420px;width:92%">
+    <h3>🗂️ データ管理</h3>
+    <div style="display:flex;flex-direction:column;gap:10px">
+
+      <div style="border:1px solid var(--border);border-radius:6px;padding:10px">
+        <div style="font-size:13px;font-weight:700;color:var(--accent);margin-bottom:4px">💾 バックアップ書き出し</div>
+        <div style="font-size:12px;font-weight:500;color:var(--text3);margin-bottom:8px;line-height:1.6">全データ（本文・設定）をJSONファイルに保存します。定期的にバックアップを取ることをお勧めします。</div>
+        <button class="tbtn primary" onclick="exportBackup()" style="font-size:12px">📤 バックアップを書き出す</button>
+        <div id="data-modal-info" style="font-size:11px;color:var(--text3);margin-top:5px"></div>
+      </div>
+
+      <div style="border:1px solid var(--border);border-radius:6px;padding:10px">
+        <div style="font-size:13px;font-weight:700;color:var(--accent);margin-bottom:4px">📥 バックアップから復元</div>
+        <div style="font-size:12px;font-weight:500;color:var(--text3);margin-bottom:8px;line-height:1.6">書き出したJSONファイルを読み込んで復元します。現在のデータは上書きされます。</div>
+        <label class="tbtn" style="font-size:12px;cursor:pointer;display:inline-block">
+          📂 ファイルを選択して復元
+          <input type="file" accept=".json" style="display:none" onchange="importBackup(this)">
+        </label>
+      </div>
+
+      <div style="border:1px solid var(--border);border-radius:6px;padding:10px">
+        <div style="font-size:13px;font-weight:700;color:var(--accent);margin-bottom:4px">🔧 データ修復</div>
+        <div style="font-size:12px;font-weight:500;color:var(--text3);margin-bottom:8px;line-height:1.6">「第3話から始まる」などの不整合を自動修復します。まずこちらをお試しください。</div>
+        <button class="tbtn" onclick="repairData()" style="font-size:12px">🔧 修復を実行</button>
+      </div>
+
+      <div style="border:1.5px solid #c0392b;border-radius:6px;padding:10px;background:rgba(192,57,43,0.04)">
+        <div style="font-size:13px;font-weight:700;color:#c0392b;margin-bottom:4px">⚠️ 全データをリセット</div>
+        <div style="font-size:12px;font-weight:500;color:var(--text3);margin-bottom:8px;line-height:1.6">全セクション・設定を消去して初期状態に戻します。<strong>取り消せません。</strong>事前にバックアップを取ってください。</div>
+        <button class="tbtn" onclick="confirmResetAll()" style="font-size:12px;background:#c0392b;color:#fff;border-color:#c0392b">🗑️ 全データをリセット</button>
+      </div>
+
+    </div>
+    <div style="margin-top:12px;text-align:right">
+      <button class="tbtn" onclick="closeDataModal()">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- リセット確認モーダル -->
+<div class="modal-overlay" id="reset-confirm-overlay">
+  <div class="modal" style="max-width:340px;width:92%">
+    <h3 style="color:#c0392b">⚠️ リセットの確認</h3>
+    <p>全てのデータ（本文・設定・エピソード）を消去します。<br>この操作は<strong>取り消せません。</strong><br>本当によろしいですか？</p>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeResetConfirm()">キャンセル</button>
+      <button class="modal-ok" style="background:#c0392b" onclick="executeReset()">リセット実行</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 </div>
 
@@ -564,17 +643,52 @@ var EP_TAGS={flash:'⚡回想',battle:'⚔戦闘',romance:'💕恋愛',memory:'�
 
 function loadSections(){
   var raw=S.get('sections');
-  if(raw){try{sections=JSON.parse(raw);}catch(e){sections=[];}}
-  if(!sections.filter(function(s){return !s.isEpisode;}).length){
-    // 初期データ：正しい順序で push
+
+  // ① JSONパース（失敗したら壊れたデータとして退避しリセット）
+  if(raw){
+    try{
+      var parsed=JSON.parse(raw);
+      sections=Array.isArray(parsed)?parsed:[];
+    }catch(e){
+      // 壊れたデータを退避キーに保存してから削除
+      try{S.set('sections_corrupted_'+Date.now(),raw);}catch(ee){}
+      S.del('sections');
+      sections=[];
+      showToast('⚠️ データ不整合を検出しました。データ管理→修復をお試しください');
+    }
+  }
+
+  // ② フィールド補完・サニタイズ
+  sections=sections.filter(function(s){
+    return s&&typeof s==='object'&&s.id&&typeof s.id==='string';
+  }).map(function(s){
+    if(s.isEpisode===undefined||s.isEpisode===null)s.isEpisode=false;
+    if(typeof s.text!=='string')s.text='';
+    if(typeof s.label!=='string')s.label='無題';
+    if(typeof s.type!=='string')s.type=s.isEpisode?'episode':'episode';
+    return s;
+  });
+
+  // ③ 重複ID除去
+  var seen={};
+  sections=sections.filter(function(s){
+    if(seen[s.id])return false;
+    seen[s.id]=true;
+    return true;
+  });
+
+  // ④ 本編セクションがゼロなら初期データを追加
+  var mainSections=sections.filter(function(s){return !s.isEpisode;});
+  if(!mainSections.length){
     var eps=sections.filter(function(s){return s.isEpisode;});
     sections=[
       {id:'prologue-0',type:'prologue',label:'序章',title:'',text:'',isEpisode:false},
       {id:'chapter-0', type:'chapter', label:'第1章',title:'',text:'',isEpisode:false},
       {id:'episode-0', type:'episode', label:'第1話',title:'',text:'',isEpisode:false}
     ].concat(eps);
-    saveSections();
   }
+
+  saveSections();
 }
 function saveSections(){S.set('sections',JSON.stringify(sections));}
 function getSection(id){for(var i=0;i<sections.length;i++){if(sections[i].id===id)return sections[i];}return null;}
@@ -782,6 +896,56 @@ function insertDash(){insertAt('――');}
 function insertDot(){insertAt('……');}
 
 // ======== SAVE / EXPORT ========
+var saveModalText='';
+var saveModalFilename='';
+
+function openSaveModal(title,filename,text){
+  saveModalText=text;
+  saveModalFilename=filename;
+  document.getElementById('save-modal-title').textContent=title;
+  document.getElementById('save-modal-text').value=text;
+  document.getElementById('save-modal-overlay').classList.add('open');
+  // テキストエリアを先頭にスクロール
+  setTimeout(function(){document.getElementById('save-modal-text').scrollTop=0;},50);
+}
+function closeSaveModal(){
+  document.getElementById('save-modal-overlay').classList.remove('open');
+}
+document.getElementById('save-modal-overlay').addEventListener('click',function(e){
+  if(e.target===this)closeSaveModal();
+});
+function savemodalCopy(){
+  copyToClipboard(saveModalText,'📋 全文をコピーしました！メモ帳などに貼り付けて保存してください');
+}
+function savemodalDownload(){
+  var bom='\uFEFF';
+  var isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
+  if(isIOS){
+    // iOS: Blob URL方式を試み、失敗したらクリップボードにフォールバック
+    try{
+      var blob=new Blob([bom+saveModalText],{type:'text/plain;charset=utf-8'});
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement('a');
+      a.href=url;a.download=saveModalFilename;a.style.display='none';
+      document.body.appendChild(a);a.click();
+      setTimeout(function(){URL.revokeObjectURL(url);document.body.removeChild(a);},1500);
+      showToast('💾 ダウンロードを開始しました（「ファイル」アプリに保存されます）');
+    }catch(e){
+      // Blob失敗時はクリップボードへ
+      copyToClipboard(saveModalText,'📋 DL非対応のためコピーしました。メモ帳などに貼り付けて保存してください');
+    }
+  } else {
+    var dataUri='data:text/plain;charset=utf-8,'+encodeURIComponent(bom+saveModalText);
+    var a=document.createElement('a');
+    a.href=dataUri;a.download=saveModalFilename;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    showToast('💾 「'+saveModalFilename+'」をダウンロードしました');
+  }
+}
+
+function sectionHeading(s){
+  return s.label+(s.title?' ── '+s.title:'');
+}
 function saveAsFile(){
   if(!curSectionId){showToast('セクションを選択してください');return;}
   saveCurrentSection();
@@ -789,11 +953,7 @@ function saveAsFile(){
   var heading=sectionHeading(s);
   var content='【'+heading+'】\n\n'+(s.text||'');
   var filename=heading.replace(/[\/\\:*?"<>|]/g,'_')+'.txt';
-  downloadText(filename,content);
-}
-function sectionHeading(s){
-  // ラベル（具体名）＋サブタイトルを見出しに使う
-  return s.label+(s.title?' ── '+s.title:'');
+  openSaveModal('💾 '+heading, filename, content);
 }
 function exportAll(){
   saveCurrentSection();
@@ -801,12 +961,11 @@ function exportAll(){
   sections.filter(function(s){return !s.isEpisode;}).forEach(function(s){
     out+='【'+sectionHeading(s)+'】\n\n'+(s.text||'')+'\n\n\n';
   });
-  downloadText('小説_本編_全文.txt',out);
+  openSaveModal('📦 本編全文', '小説_本編_全文.txt', out);
 }
-
-// 全文＋設定ファイル同時保存
 function exportAllWithSettings(){
   saveCurrentSection();
+  // 本文
   var out='';
   sections.filter(function(s){return !s.isEpisode;}).forEach(function(s){
     out+='【'+sectionHeading(s)+'】\n\n'+(s.text||'')+'\n\n\n';
@@ -819,34 +978,19 @@ function exportAllWithSettings(){
       out+=tag+'【'+sectionHeading(s)+'】\n\n'+(s.text||'')+'\n\n\n';
     });
   }
-  downloadText('小説_全文.txt',out);
-
-  // 設定ファイル
-  var cfg='========== 小説設定ファイル ==========\n\n';
-  // キャラクター
-  cfg+='===== キャラクター設定 =====\n\n';
+  // 設定を末尾に連結
+  out+='\n\n========== 小説設定 ==========\n\n';
+  out+='===== キャラクター設定 =====\n\n';
   for(var i=0;i<CHAR_COUNT;i++){
     var name=S.get('char-name-'+i)||('キャラ'+(i+1));
     var profile=S.get('char-profile-'+i)||'（未入力）';
     var hasImg=S.get('char-img-'+i)?'（画像あり）':'（画像なし）';
-    cfg+='--- '+name+' '+hasImg+' ---\n'+profile+'\n\n';
+    out+='--- '+name+' '+hasImg+' ---\n'+profile+'\n\n';
   }
-  // 世界観
-  cfg+='===== 世界観・設定 =====\n'+(S.get('world-text')||'（未入力）')+'\n\n';
-  // あらすじ
-  cfg+='===== あらすじ・プロット =====\n'+(S.get('plot-text')||'（未入力）')+'\n\n';
-  cfg+='===== 保存日時 =====\n'+new Date().toLocaleString('ja-JP')+'\n';
-
-  setTimeout(function(){downloadText('小説_設定.txt',cfg);},300);
-  showToast('📦 全文＋設定の2ファイルを保存します');
-}
-
-function downloadText(filename,text){
-  var bom='\uFEFF';
-  var dataUri='data:text/plain;charset=utf-8,'+encodeURIComponent(bom+text);
-  var a=document.createElement('a');
-  a.href=dataUri;a.download=filename;
-  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  out+='===== 世界観・設定 =====\n'+(S.get('world-text')||'（未入力）')+'\n\n';
+  out+='===== あらすじ・プロット =====\n'+(S.get('plot-text')||'（未入力）')+'\n\n';
+  out+='===== 保存日時 =====\n'+new Date().toLocaleString('ja-JP')+'\n';
+  openSaveModal('📦 全文＋設定', '小説_全文と設定.txt', out);
 }
 
 // ======== COPY ========
@@ -940,6 +1084,153 @@ function applyAIResult(mode){
 }
 function copyAIResult(){copyToClipboard(lastAIResult,'AI生成テキストをコピーしました');}
 
+// ======== DATA MANAGEMENT ========
+function openDataModal(){
+  // データサイズ表示
+  try{
+    var raw=S.get('sections')||'';
+    var kb=(new Blob([raw]).size/1024).toFixed(1);
+    document.getElementById('data-modal-info').textContent='現在のデータサイズ：'+kb+' KB';
+  }catch(e){}
+  document.getElementById('data-modal-overlay').classList.add('open');
+}
+function closeDataModal(){
+  document.getElementById('data-modal-overlay').classList.remove('open');
+}
+document.getElementById('data-modal-overlay').addEventListener('click',function(e){
+  if(e.target===this)closeDataModal();
+});
+
+function exportBackup(){
+  saveCurrentSection();
+  var backup={
+    version:4,
+    exportedAt:new Date().toISOString(),
+    sections:sections,
+    charProfiles:[],
+    worldText:S.get('world-text')||'',
+    plotText:S.get('plot-text')||''
+  };
+  for(var i=0;i<CHAR_COUNT;i++){
+    backup.charProfiles.push({
+      name:S.get('char-name-'+i)||'',
+      profile:S.get('char-profile-'+i)||'',
+      img:S.get('char-img-'+i)||''
+    });
+  }
+  var json=JSON.stringify(backup,null,2);
+  var blob=new Blob([json],{type:'application/json;charset=utf-8'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  var date=new Date().toISOString().slice(0,10);
+  a.href=url;a.download='acode_backup_'+date+'.json';a.style.display='none';
+  document.body.appendChild(a);a.click();
+  setTimeout(function(){URL.revokeObjectURL(url);document.body.removeChild(a);},1500);
+  showToast('✅ バックアップを書き出しました');
+}
+
+function importBackup(input){
+  var file=input.files[0];if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var data=JSON.parse(e.target.result);
+      if(!data||typeof data!=='object')throw new Error('invalid');
+      // sections
+      if(Array.isArray(data.sections)){
+        sections=data.sections;
+        saveSections();
+      }
+      // char profiles
+      if(Array.isArray(data.charProfiles)){
+        data.charProfiles.forEach(function(c,i){
+          if(i<CHAR_COUNT){
+            if(c.name)S.set('char-name-'+i,c.name);
+            if(c.profile)S.set('char-profile-'+i,c.profile);
+            if(c.img)S.set('char-img-'+i,c.img);
+          }
+        });
+      }
+      if(data.worldText)S.set('world-text',data.worldText);
+      if(data.plotText)S.set('plot-text',data.plotText);
+      // 再描画
+      buildStructList();
+      buildCharBtns();selectChar(0);
+      var wt=S.get('world-text');if(wt&&document.getElementById('world-text'))document.getElementById('world-text').value=wt;
+      var pt=S.get('plot-text');if(pt&&document.getElementById('plot-text'))document.getElementById('plot-text').value=pt;
+      var list=getSectionsByMode(storyMode);
+      if(list.length)selectSection(list[0].id);
+      closeDataModal();
+      showToast('✅ バックアップから復元しました');
+    }catch(err){
+      showToast('❌ 復元に失敗しました（ファイルが壊れています）');
+    }
+  };
+  reader.readAsText(file);
+  input.value='';
+}
+
+function repairData(){
+  saveCurrentSection();
+  var before=sections.length;
+  // サニタイズ
+  sections=sections.filter(function(s){
+    return s&&typeof s==='object'&&s.id&&typeof s.id==='string';
+  }).map(function(s){
+    if(s.isEpisode===undefined||s.isEpisode===null)s.isEpisode=false;
+    if(typeof s.text!=='string')s.text='';
+    if(typeof s.label!=='string')s.label='無題';
+    return s;
+  });
+  // 重複除去
+  var seen={};
+  sections=sections.filter(function(s){
+    if(seen[s.id])return false;seen[s.id]=true;return true;
+  });
+  // 本編がゼロなら初期データ追加
+  var mainSections=sections.filter(function(s){return !s.isEpisode;});
+  if(!mainSections.length){
+    sections.unshift({id:'episode-init-'+Date.now(),type:'episode',label:'第1話',title:'',text:'',isEpisode:false});
+  }
+  // curSectionIdの検証
+  if(curSectionId&&!getSection(curSectionId))curSectionId=null;
+  saveSections();
+  buildStructList();
+  var list=getSectionsByMode(storyMode);
+  if(list.length)selectSection(curSectionId||list[0].id);
+  var removed=before-sections.length;
+  showToast(removed>0?'🔧 修復完了：重複データ'+removed+'件を削除しました':'✅ 修復完了：問題は見つかりませんでした');
+}
+
+function confirmResetAll(){
+  closeDataModal();
+  document.getElementById('reset-confirm-overlay').classList.add('open');
+}
+function closeResetConfirm(){
+  document.getElementById('reset-confirm-overlay').classList.remove('open');
+}
+document.getElementById('reset-confirm-overlay').addEventListener('click',function(e){
+  if(e.target===this)closeResetConfirm();
+});
+function executeReset(){
+  closeResetConfirm();
+  // 全localStorageキーを削除
+  S.del('sections');
+  for(var i=0;i<CHAR_COUNT;i++){S.del('char-name-'+i);S.del('char-profile-'+i);S.del('char-img-'+i);}
+  S.del('world-text');S.del('world-img');S.del('plot-text');
+  // 状態リセット
+  sections=[];curSectionId=null;
+  loadSections();buildStructList();buildCharBtns();selectChar(0);
+  document.getElementById('editor').value='';
+  document.getElementById('section-title-input').value='';
+  if(document.getElementById('world-text'))document.getElementById('world-text').value='';
+  if(document.getElementById('plot-text'))document.getElementById('plot-text').value='';
+  var list=getSectionsByMode('main');
+  if(list.length)selectSection(list[0].id);
+  updateCount();
+  showToast('🗑️ データをリセットしました');
+}
+
 // ======== INIT ========
 (function(){
   // ダークモード復元
@@ -955,7 +1246,9 @@ function copyAIResult(){copyToClipboard(lastAIResult,'AI生成テキストをコ
   // データ読込
   loadSections();buildStructList();
   var mainList=getSectionsByMode('main');
-  if(mainList.length)selectSection(mainList[0].id);
+  // curSectionIdが有効かチェックし、無効なら先頭に補正
+  if(curSectionId&&!getSection(curSectionId))curSectionId=null;
+  if(mainList.length)selectSection(curSectionId&&getSection(curSectionId)?curSectionId:mainList[0].id);
   buildCharBtns();selectChar(0);
   var wt=S.get('world-text');if(wt)document.getElementById('world-text').value=wt;
   var wi=S.get('world-img');if(wi)setImg(document.getElementById('world-img'),wi);
