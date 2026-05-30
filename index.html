@@ -3,176 +3,214 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>小説執筆エディタ</title>
+<title>小説執筆エディタ v3</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#f7f5f0;
-  --surface:#fff;
-  --surface2:#f0ede5;
-  --border:#ddd;
-  --border2:#e8e4dc;
-  --text:#1a1a1a;
-  --text2:#555;
-  --text3:#999;
-  --accent:#3d2b1f;
-  --accent2:#7c5c47;
+  --bg:#f7f5f0;--surface:#fff;--surface2:#f0ede5;--surface3:#e8e3d8;
+  --border:#ddd;--border2:#e8e4dc;
+  --text:#1a1a1a;--text2:#444;--text3:#888;
+  --accent:#3d2b1f;--accent2:#7c5c47;
   --highlight:#fdf6e3;
-  --ai:#e8f4e8;
-  --ai-border:#6aaa6a;
-  --danger:#c0392b;
+  --ai:#e8f4e8;--ai-border:#6aaa6a;
+  --ep-main:#3d2b1f;--ep-episode:#1a4a7a;
+  --tag-flash:#c0392b;--tag-battle:#8b0000;--tag-romance:#8b1a5a;--tag-memory:#2d6a4f;--tag-extra:#6a4a2d;
+  --font-ui:'Hiragino Kaku Gothic ProN','Noto Sans JP','Meiryo',sans-serif;
+  --font-editor:'Hiragino Mincho ProN','YuMincho','Georgia',serif;
+  --fw-ui:600;--fw-editor:500;--fs-ui:14px;--fs-editor:16px;
+}
+/* ダークモード */
+body.dark{
+  --bg:#1a1a1a;--surface:#252525;--surface2:#2e2e2e;--surface3:#383838;
+  --border:#444;--border2:#3a3a3a;
+  --text:#f0f0f0;--text2:#ccc;--text3:#888;
+  --accent:#c8a882;--accent2:#a07850;
+  --highlight:#2a2a1a;
+  --ai:#1a2e1a;--ai-border:#4a8a4a;
 }
 html,body{height:100%;overflow:hidden}
-body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP','Meiryo',sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+body{font-family:var(--font-ui);background:var(--bg);color:var(--text);font-size:var(--fs-ui);font-weight:var(--fw-ui);transition:background 0.2s,color 0.2s}
 
-/* ======== APP LAYOUT ======== */
+/* ===== APP ===== */
 .app{display:flex;flex-direction:column;height:100vh}
 
-/* ======== TOP PANE ======== */
-.top-pane{background:var(--surface);border-bottom:2px solid var(--border);flex-shrink:0;overflow:hidden;transition:height 0.3s ease}
-.top-pane.collapsed{height:36px!important}
-.top-tabs{display:flex;align-items:center;background:var(--surface2);border-bottom:1px solid var(--border);min-height:36px}
-.ttab{padding:7px 16px;font-size:12px;cursor:pointer;border:none;background:none;color:var(--text2);border-bottom:2px solid transparent;white-space:nowrap}
-.ttab.active{color:var(--accent);border-bottom:2px solid var(--accent);font-weight:600;background:var(--surface)}
+/* ===== STORY MODE TABS (最上部) ===== */
+.story-tabs{display:flex;align-items:stretch;background:var(--surface3);border-bottom:2px solid var(--border);flex-shrink:0;min-height:38px}
+.stab{flex:1;padding:8px 10px;font-size:13px;font-weight:700;cursor:pointer;border:none;background:none;color:var(--text3);border-bottom:3px solid transparent;transition:all 0.15s;letter-spacing:0.5px}
+.stab.main.active{color:#fff;background:var(--ep-main);border-bottom-color:var(--ep-main)}
+.stab.episode.active{color:#fff;background:var(--ep-episode);border-bottom-color:var(--ep-episode)}
+.stab:not(.active):hover{background:var(--surface2);color:var(--text)}
+.stab-label{font-size:10px;display:block;font-weight:500;opacity:0.8}
+
+/* ===== TOP PANE (設定) ===== */
+.top-pane{background:var(--surface);border-bottom:2px solid var(--border);flex-shrink:0;overflow:hidden}
+.top-pane.collapsed{overflow:hidden}
+.top-tabs{display:flex;align-items:center;background:var(--surface2);border-bottom:1px solid var(--border);min-height:34px}
+.ttab{padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;border:none;background:none;color:var(--text3);border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.15s}
+.ttab.active{color:var(--accent);border-bottom:2px solid var(--accent);background:var(--surface)}
 .ttab:hover{color:var(--accent)}
-.top-toggle{margin-left:auto;padding:4px 10px;font-size:11px;border:none;background:none;color:var(--text3);cursor:pointer;display:flex;align-items:center;gap:3px;white-space:nowrap}
-.top-toggle:hover{color:var(--text2)}
-.top-panel{display:none;padding:10px 14px;gap:10px}
+.top-toggle{margin-left:auto;padding:4px 12px;font-size:12px;font-weight:700;border:none;background:none;color:var(--text3);cursor:pointer;white-space:nowrap;transition:color 0.15s}
+.top-toggle:hover{color:var(--text)}
+.top-panel{display:none;padding:8px 12px;gap:10px}
 .top-panel.active{display:flex}
-#top-plot.active{display:block}
-.collapsed .top-panel{display:none!important}
+#top-plot.active{display:block;padding:8px 12px}
+.collapsed .top-panel,.collapsed #top-plot{display:none!important}
 
 /* キャラ */
-.char-btns-col{display:flex;flex-direction:column;gap:3px;min-width:86px}
-.cbtn{padding:5px 8px;font-size:12px;border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:var(--text2);cursor:pointer;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:all 0.15s}
+.char-btns-col{display:flex;flex-direction:column;gap:3px;min-width:84px}
+.cbtn{padding:5px 8px;font-size:12px;font-weight:600;border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:var(--text2);cursor:pointer;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:all 0.15s}
 .cbtn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
-.cbtn:hover{background:var(--surface2);border-color:var(--accent2)}
-.img-box{width:96px;min-width:96px;height:116px;border:1.5px dashed #bbb;border-radius:6px;background:var(--surface2);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;overflow:hidden;flex-shrink:0;flex-direction:column;gap:4px;transition:border-color 0.2s}
+.img-box{width:90px;min-width:90px;height:110px;border:1.5px dashed #bbb;border-radius:6px;background:var(--surface2);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;overflow:hidden;flex-shrink:0;flex-direction:column}
 .img-box img{width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0}
-.img-box .drop-label{font-size:10px;color:var(--text3);text-align:center;line-height:1.6;position:relative;z-index:1;pointer-events:none}
+.img-box .drop-label{font-size:10px;color:var(--text3);text-align:center;line-height:1.6;position:relative;z-index:1;pointer-events:none;font-weight:500}
 .img-box input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;z-index:2}
 .img-box.dragover{border-color:var(--accent);background:var(--highlight)}
 .profile-area{flex:1;min-width:0}
-.profile-area textarea{width:100%;height:116px;resize:none;font-size:12px;line-height:1.8;padding:8px;border:1px solid var(--border);border-radius:5px;background:var(--surface2);color:var(--text);font-family:inherit}
+.profile-area textarea{width:100%;height:110px;resize:none;font-size:12px;font-weight:500;line-height:1.8;padding:8px;border:1px solid var(--border);border-radius:5px;background:var(--surface2);color:var(--text);font-family:var(--font-ui)}
 .profile-area textarea:focus{outline:none;border-color:var(--accent2)}
-.world-img{width:140px;min-width:140px;height:106px;border:1.5px dashed #bbb;border-radius:6px;background:var(--surface2);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;overflow:hidden;flex-shrink:0;flex-direction:column;gap:4px}
+.world-img{width:130px;min-width:130px;height:100px;border:1.5px dashed #bbb;border-radius:6px;background:var(--surface2);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;overflow:hidden;flex-shrink:0;flex-direction:column}
 .world-img img{width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0}
-.world-img .drop-label{font-size:10px;color:var(--text3);text-align:center;line-height:1.6;position:relative;z-index:1;pointer-events:none}
+.world-img .drop-label{font-size:10px;color:var(--text3);text-align:center;line-height:1.6;position:relative;z-index:1;pointer-events:none;font-weight:500}
 .world-img input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;z-index:2}
 .world-area{flex:1}
-.world-area textarea{width:100%;height:106px;resize:none;font-size:12px;line-height:1.8;padding:8px;border:1px solid var(--border);border-radius:5px;background:var(--surface2);color:var(--text);font-family:inherit}
-.world-area textarea:focus{outline:none;border-color:var(--accent2)}
-#top-plot textarea{width:100%;height:106px;resize:none;font-size:12px;line-height:1.8;padding:8px;border:1px solid var(--border);border-radius:5px;background:var(--surface2);color:var(--text);font-family:inherit}
-#top-plot textarea:focus{outline:none;border-color:var(--accent2)}
+.world-area textarea,.top-panel textarea{width:100%;height:100px;resize:none;font-size:12px;font-weight:500;line-height:1.8;padding:8px;border:1px solid var(--border);border-radius:5px;background:var(--surface2);color:var(--text);font-family:var(--font-ui)}
+.world-area textarea:focus,.top-panel textarea:focus{outline:none;border-color:var(--accent2)}
+#top-plot textarea{height:100px}
 
-/* ======== RESIZER ======== */
-.resizer{height:5px;background:var(--surface2);cursor:row-resize;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-top:1px solid var(--border);border-bottom:1px solid var(--border);transition:background 0.2s}
+/* ===== H-RESIZER ===== */
+.resizer{height:8px;background:var(--surface3);cursor:row-resize;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-top:1px solid var(--border);border-bottom:1px solid var(--border);transition:background 0.15s;user-select:none}
 .resizer:hover,.resizer.dragging{background:var(--accent2)}
-.resizer-dots{display:flex;gap:3px}
-.resizer-dot{width:4px;height:4px;border-radius:50%;background:#bbb}
-.resizer:hover .resizer-dot,.resizer.dragging .resizer-dot{background:#fff}
+.resizer-grip{display:flex;gap:4px}
+.resizer-grip span{width:28px;height:3px;border-radius:2px;background:var(--text3);transition:background 0.15s}
+.resizer:hover .resizer-grip span,.resizer.dragging .resizer-grip span{background:#fff}
+.resizer-dblhint{font-size:10px;color:var(--text3);margin-left:8px;font-weight:500;transition:color 0.15s}
+.resizer:hover .resizer-dblhint{color:#fff}
 
-/* ======== BOTTOM ======== */
+/* ===== BOTTOM ===== */
 .bottom-pane{display:flex;flex:1;overflow:hidden;min-height:0}
 .structure-col{width:176px;min-width:176px;border-right:1px solid var(--border);background:var(--surface2);display:flex;flex-direction:column;overflow:hidden;transition:width 0.2s,min-width 0.2s}
-.structure-col.collapsed{width:0!important;min-width:0!important;overflow:hidden}
-.structure-header{padding:8px 10px;font-size:12px;font-weight:600;color:var(--accent);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;white-space:nowrap}
+.structure-col.narrow{width:0!important;min-width:0!important}
+.structure-header{padding:7px 10px;font-size:12px;font-weight:700;color:var(--accent);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;white-space:nowrap}
 .structure-list{flex:1;overflow-y:auto}
-.struct-item{display:flex;align-items:center;padding:5px 10px;cursor:pointer;font-size:12px;color:var(--text2);border-bottom:1px solid var(--border2);gap:4px;transition:background 0.1s}
+.struct-item{display:flex;align-items:center;padding:6px 10px;cursor:pointer;font-size:12px;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border2);gap:4px;transition:background 0.1s}
 .struct-item:hover{background:var(--highlight)}
 .struct-item.active{background:var(--accent);color:#fff}
-.struct-item.active .struct-del{color:rgba(255,255,255,0.6)}
-.struct-item.chapter{font-weight:600;color:var(--accent);background:#ece7dc;padding-left:10px}
+.struct-item.active .struct-del{color:rgba(255,255,255,0.5)}
+.struct-item.chapter{font-weight:700;color:var(--accent);background:var(--surface3);padding-left:10px}
 .struct-item.chapter.active{background:var(--accent);color:#fff}
-.struct-item.episode{padding-left:22px;font-size:11px}
-.struct-item.prologue,.struct-item.epilogue{padding-left:10px;font-weight:600}
-.struct-del{margin-left:auto;font-size:10px;color:#ccc;cursor:pointer;padding:2px 3px;display:none;flex-shrink:0}
+.struct-item.episode,.struct-item.prologue,.struct-item.epilogue,.struct-item.extra,.struct-item.memo{padding-left:20px;font-size:11px}
+/* エピソード種別バッジ */
+.struct-item .ep-tag{font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px;flex-shrink:0;color:#fff}
+.ep-tag.flash{background:var(--tag-flash)}
+.ep-tag.battle{background:var(--tag-battle)}
+.ep-tag.romance{background:var(--tag-romance)}
+.ep-tag.memory{background:var(--tag-memory)}
+.ep-tag.extra{background:var(--tag-extra)}
+.ep-tag.other{background:var(--text3)}
+.struct-del{margin-left:auto;font-size:11px;color:#ccc;cursor:pointer;padding:2px 4px;display:none;flex-shrink:0}
 .struct-item:hover .struct-del{display:inline}
 .struct-add-row{padding:7px 10px;display:flex;flex-direction:column;gap:4px;border-top:1px solid var(--border);flex-shrink:0}
-.struct-add-row select,.struct-add-row input{font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);width:100%}
-.struct-add-row button{font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text2);cursor:pointer;width:100%}
+.struct-add-row select,.struct-add-row input{font-size:11px;font-weight:600;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);width:100%}
+.struct-add-row button{font-size:11px;font-weight:700;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text2);cursor:pointer;width:100%;transition:all 0.15s}
 .struct-add-row button:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+/* エピソード種別セレクト（エピソードモード時のみ表示） */
+.ep-type-row{display:none}
+.ep-mode .ep-type-row{display:block}
 
-/* ======== VERTICAL RESIZER ======== */
-.v-resizer{width:5px;background:var(--surface2);cursor:col-resize;flex-shrink:0;border-left:1px solid var(--border);border-right:1px solid var(--border);transition:background 0.2s;display:flex;align-items:center;justify-content:center}
+/* ===== V-RESIZER ===== */
+.v-resizer{width:10px;background:var(--surface3);cursor:col-resize;flex-shrink:0;border-left:1px solid var(--border);border-right:1px solid var(--border);transition:background 0.15s;display:flex;align-items:center;justify-content:center;user-select:none}
 .v-resizer:hover,.v-resizer.dragging{background:var(--accent2)}
-.v-resizer-dots{display:flex;flex-direction:column;gap:3px}
-.v-resizer-dot{width:4px;height:4px;border-radius:50%;background:#bbb}
-.v-resizer:hover .v-resizer-dot,.v-resizer.dragging .v-resizer-dot{background:#fff}
+.v-resizer-grip{display:flex;flex-direction:column;gap:4px}
+.v-resizer-grip span{width:3px;height:18px;border-radius:2px;background:var(--text3);transition:background 0.15s}
+.v-resizer:hover .v-resizer-grip span,.v-resizer.dragging .v-resizer-grip span{background:#fff}
 
-/* ======== EDITOR ======== */
+/* ===== EDITOR ===== */
 .editor-col{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
 .editor-toolbar{display:flex;gap:4px;flex-wrap:wrap;align-items:center;padding:6px 10px;border-bottom:1px solid var(--border);background:var(--surface2);flex-shrink:0}
-.tbtn{padding:4px 9px;font-size:11px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text2);cursor:pointer;white-space:nowrap;transition:all 0.15s}
+.tbtn{padding:5px 10px;font-size:12px;font-weight:700;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text2);cursor:pointer;white-space:nowrap;transition:all 0.15s}
 .tbtn:hover{background:var(--surface2);border-color:var(--accent2);color:var(--accent)}
 .tbtn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
-.tbtn.primary:hover{background:#2a1d14}
+.tbtn.primary:hover{opacity:0.85}
 .tbtn.ai{background:var(--ai);color:#2d6a2d;border-color:var(--ai-border)}
-.tbtn.ai:hover{background:#d4edd4}
-.tbtn-sep{width:1px;height:20px;background:var(--border);margin:0 2px;flex-shrink:0}
+body.dark .tbtn.ai{color:#8fca8f}
+.tbtn.ai:hover{background:#2d6a2d;color:#fff}
+.tbtn.toggle-on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.tbtn-sep{width:1px;height:22px;background:var(--border);margin:0 3px;flex-shrink:0}
 .editor-title-bar{padding:5px 14px;border-bottom:1px solid var(--border2);background:var(--surface);display:flex;align-items:center;gap:8px;flex-shrink:0}
-.editor-title-bar input{font-size:13px;font-weight:500;border:none;background:transparent;color:var(--text);flex:1;outline:none;font-family:inherit}
-.char-count{font-size:11px;color:var(--text3);white-space:nowrap}
+.editor-title-bar input{font-size:14px;font-weight:700;border:none;background:transparent;color:var(--text);flex:1;outline:none;font-family:var(--font-ui)}
+.char-count{font-size:12px;font-weight:600;color:var(--text3);white-space:nowrap}
 .editor-wrap{flex:1;overflow-y:auto;background:var(--surface);position:relative}
-#editor{width:100%;min-height:100%;font-size:15px;line-height:2.1;padding:18px 24px;border:none;background:transparent;color:var(--text);font-family:'Hiragino Mincho ProN','YuMincho','Georgia',serif;outline:none;resize:none}
-.editor-statusbar{padding:4px 12px;border-top:1px solid var(--border);background:var(--surface2);display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
-.save-st{font-size:11px;color:var(--text2)}
-.ruby-hint{font-size:10px;color:var(--text3);margin-left:auto}
+#editor{width:100%;min-height:100%;font-size:var(--fs-editor);font-weight:var(--fw-editor);line-height:2.1;padding:20px 28px;border:none;background:transparent;color:var(--text);font-family:var(--font-editor);outline:none;resize:none;transition:font-size 0.1s}
+.editor-statusbar{padding:5px 12px;border-top:1px solid var(--border);background:var(--surface2);display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
+.save-st{font-size:12px;font-weight:600;color:var(--text2)}
+.ruby-hint{font-size:11px;font-weight:500;color:var(--text3);margin-left:auto}
 
-/* ======== AI PANEL ======== */
-.ai-panel{position:absolute;bottom:0;left:0;right:0;background:var(--surface);border-top:2px solid var(--ai-border);padding:10px 14px;display:none;flex-direction:column;gap:8px;max-height:50%;overflow-y:auto;z-index:100;box-shadow:0 -4px 20px rgba(0,0,0,0.1)}
+/* ===== AI PANEL ===== */
+.ai-panel{position:absolute;bottom:0;left:0;right:0;background:var(--surface);border-top:2px solid var(--ai-border);padding:10px 14px;display:none;flex-direction:column;gap:8px;max-height:55%;overflow-y:auto;z-index:100;box-shadow:0 -4px 20px rgba(0,0,0,0.15)}
 .ai-panel.open{display:flex}
 .ai-panel-header{display:flex;align-items:center;gap:8px;flex-shrink:0}
-.ai-panel-header span{font-size:12px;font-weight:600;color:#2d6a2d}
-.ai-close{margin-left:auto;border:none;background:none;cursor:pointer;color:var(--text3);font-size:16px;line-height:1;padding:2px}
+.ai-panel-header span{font-size:13px;font-weight:700;color:#2d6a2d}
+body.dark .ai-panel-header span{color:#8fca8f}
+.ai-close{margin-left:auto;border:none;background:none;cursor:pointer;color:var(--text3);font-size:18px;line-height:1;padding:2px}
 .ai-options{display:flex;gap:6px;flex-wrap:wrap}
-.ai-opt{padding:5px 12px;font-size:12px;border:1px solid var(--ai-border);border-radius:20px;background:var(--ai);color:#2d6a2d;cursor:pointer;transition:all 0.15s}
+.ai-opt{padding:5px 12px;font-size:12px;font-weight:700;border:1px solid var(--ai-border);border-radius:20px;background:var(--ai);color:#2d6a2d;cursor:pointer;transition:all 0.15s}
+body.dark .ai-opt{color:#8fca8f}
 .ai-opt:hover{background:#2d6a2d;color:#fff}
 .ai-custom-row{display:flex;gap:6px}
-.ai-custom-row input{flex:1;font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:4px;font-family:inherit;outline:none}
+.ai-custom-row input{flex:1;font-size:12px;font-weight:600;padding:5px 8px;border:1px solid var(--border);border-radius:4px;font-family:var(--font-ui);outline:none;background:var(--surface2);color:var(--text)}
 .ai-custom-row input:focus{border-color:var(--ai-border)}
-.ai-custom-row button{padding:5px 12px;font-size:12px;background:#2d6a2d;color:#fff;border:none;border-radius:4px;cursor:pointer}
-.ai-result{background:var(--highlight);border:1px solid var(--border);border-radius:5px;padding:10px 12px;font-size:13px;line-height:1.9;color:var(--text);font-family:'Hiragino Mincho ProN','YuMincho',serif;white-space:pre-wrap;word-break:break-all}
+.ai-custom-row button{padding:5px 14px;font-size:12px;font-weight:700;background:#2d6a2d;color:#fff;border:none;border-radius:4px;cursor:pointer}
+.ai-result{background:var(--highlight);border:1px solid var(--border);border-radius:5px;padding:10px 12px;font-size:13px;line-height:1.9;color:var(--text);font-family:var(--font-editor);white-space:pre-wrap;word-break:break-all}
 .ai-result-btns{display:flex;gap:6px;flex-wrap:wrap}
-.ai-result-btn{padding:4px 10px;font-size:11px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text2);cursor:pointer}
+.ai-result-btn{padding:4px 10px;font-size:11px;font-weight:700;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text2);cursor:pointer}
 .ai-result-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
-.ai-loading{font-size:12px;color:#2d6a2d;display:flex;align-items:center;gap:6px}
+.ai-loading{font-size:12px;font-weight:600;color:#2d6a2d;display:flex;align-items:center;gap:8px}
+body.dark .ai-loading{color:#8fca8f}
 .spinner{width:14px;height:14px;border:2px solid var(--ai-border);border-top-color:#2d6a2d;border-radius:50%;animation:spin 0.7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-/* ======== MODAL ======== */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:none;align-items:center;justify-content:center}
+/* ===== MODAL ===== */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;display:none;align-items:center;justify-content:center}
 .modal-overlay.open{display:flex}
-.modal{background:var(--surface);border-radius:8px;padding:20px;max-width:380px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.25)}
-.modal h3{font-size:14px;font-weight:600;color:var(--accent);margin-bottom:12px}
-.modal p{font-size:12px;line-height:1.8;color:var(--text2);margin-bottom:14px}
+.modal{background:var(--surface);border-radius:8px;padding:22px;max-width:400px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.3)}
+.modal h3{font-size:15px;font-weight:700;color:var(--accent);margin-bottom:12px}
+.modal p{font-size:13px;font-weight:500;line-height:1.8;color:var(--text2);margin-bottom:16px}
 .modal-btns{display:flex;gap:8px;justify-content:flex-end}
-.modal-btns button{padding:6px 14px;font-size:12px;border-radius:4px;cursor:pointer}
+.modal-btns button{padding:7px 16px;font-size:13px;font-weight:700;border-radius:4px;cursor:pointer}
 .modal-cancel{border:1px solid var(--border);background:var(--surface);color:var(--text2)}
 .modal-ok{border:none;background:var(--accent);color:#fff}
 
-/* ======== TOAST ======== */
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;padding:8px 18px;border-radius:20px;font-size:12px;opacity:0;transition:opacity 0.3s;z-index:2000;pointer-events:none;white-space:nowrap}
+/* ===== TOAST ===== */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;padding:9px 20px;border-radius:20px;font-size:13px;font-weight:700;opacity:0;transition:opacity 0.3s;z-index:2000;pointer-events:none;white-space:nowrap;max-width:90vw;text-align:center}
 .toast.show{opacity:1}
 
-/* ======== iOS SAFE AREA ======== */
-@supports(padding-bottom: env(safe-area-inset-bottom)){
-  .editor-statusbar{padding-bottom:calc(4px + env(safe-area-inset-bottom))}
+/* iOS safe area */
+@supports(padding-bottom:env(safe-area-inset-bottom)){
+  .editor-statusbar{padding-bottom:calc(5px + env(safe-area-inset-bottom))}
 }
 </style>
 </head>
 <body>
 <div class="app" id="app">
 
-<!-- 上部設定パネル -->
-<div class="top-pane" id="top-pane" style="height:160px">
+<!-- ===== ストーリーモードタブ（最上部） ===== -->
+<div class="story-tabs">
+  <button class="stab main active" id="stab-main" onclick="switchStoryMode('main')">
+    📖 メインストーリー<span class="stab-label">本編・章・話</span>
+  </button>
+  <button class="stab episode" id="stab-episode" onclick="switchStoryMode('episode')">
+    ✨ エピソード<span class="stab-label">回想・戦闘・恋愛など</span>
+  </button>
+</div>
+
+<!-- ===== 設定パネル ===== -->
+<div class="top-pane" id="top-pane">
   <div class="top-tabs">
     <button class="ttab active" onclick="showTop('chara')">👤 キャラクター</button>
     <button class="ttab" onclick="showTop('world')">🌏 世界観</button>
     <button class="ttab" onclick="showTop('plot')">📋 あらすじ</button>
-    <button class="top-toggle" id="top-toggle-btn" onclick="toggleTopPane()">▲ 閉じる</button>
+    <button class="top-toggle" id="top-toggle-btn" onclick="toggleTopPane()">▲ 設定を閉じる</button>
   </div>
-
   <div id="top-chara" class="top-panel active">
     <div class="char-btns-col" id="char-btns"></div>
     <div class="img-box" id="char-img-box"
@@ -187,7 +225,6 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP','Meiryo',sans-serif;
       <textarea id="char-profile" placeholder="名前：&#10;年齢：&#10;外見：&#10;性格：&#10;備考：" oninput="saveCharData()"></textarea>
     </div>
   </div>
-
   <div id="top-world" class="top-panel">
     <div class="world-img" id="world-img-box"
          ondragover="handleDragOver(event,'world-img-box')"
@@ -201,29 +238,26 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP','Meiryo',sans-serif;
       <textarea id="world-text" placeholder="世界観・舞台設定&#10;時代、地理、魔法体系など" oninput="S.set('world-text',this.value)"></textarea>
     </div>
   </div>
-
   <div id="top-plot" class="top-panel">
     <textarea id="plot-text" placeholder="全体のあらすじ・プロット・構成メモ" oninput="S.set('plot-text',this.value)"></textarea>
   </div>
 </div>
 
-<!-- 上下リサイザー -->
-<div class="resizer" id="h-resizer">
-  <div class="resizer-dots">
-    <div class="resizer-dot"></div><div class="resizer-dot"></div><div class="resizer-dot"></div>
-  </div>
+<!-- ===== 上下リサイザー ===== -->
+<div class="resizer" id="h-resizer" title="ドラッグで高さ調整 / ダブルクリックで執筆画面を最大化">
+  <div class="resizer-grip"><span></span><span></span></div>
+  <span class="resizer-dblhint">⇕ ダブルクリックで最大化</span>
 </div>
 
-<!-- 下部 -->
+<!-- ===== 下部 ===== -->
 <div class="bottom-pane">
-  <!-- 段落構成 -->
   <div class="structure-col" id="struct-col">
     <div class="structure-header">
-      段落構成
-      <span style="cursor:pointer;font-size:15px;color:var(--accent2)" title="追加" onclick="addSection()">＋</span>
+      <span id="struct-header-label">📖 本編構成</span>
+      <span style="cursor:pointer;font-size:16px;color:var(--accent2)" title="追加" onclick="addSection()">＋</span>
     </div>
     <div class="structure-list" id="struct-list"></div>
-    <div class="struct-add-row">
+    <div class="struct-add-row" id="struct-add-row">
       <select id="add-type">
         <option value="prologue">序章</option>
         <option value="chapter">第○章</option>
@@ -232,6 +266,14 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP','Meiryo',sans-serif;
         <option value="extra">番外編</option>
         <option value="memo">メモ</option>
       </select>
+      <select id="add-ep-type" class="ep-type-row" style="display:none">
+        <option value="other">種別：その他</option>
+        <option value="flash">⚡ 回想シーン</option>
+        <option value="battle">⚔️ 戦闘シーン</option>
+        <option value="romance">💕 恋愛シーン</option>
+        <option value="memory">💭 記憶・夢</option>
+        <option value="extra">📦 番外エピソード</option>
+      </select>
       <input type="text" id="add-label" placeholder="タイトル（省略可）">
       <button onclick="addSection()">＋ 追加</button>
     </div>
@@ -239,9 +281,7 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP','Meiryo',sans-serif;
 
   <!-- 左右リサイザー -->
   <div class="v-resizer" id="v-resizer">
-    <div class="v-resizer-dots">
-      <div class="v-resizer-dot"></div><div class="v-resizer-dot"></div><div class="v-resizer-dot"></div>
-    </div>
+    <div class="v-resizer-grip"><span></span><span></span><span></span></div>
   </div>
 
   <!-- エディタ -->
@@ -252,13 +292,17 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP','Meiryo',sans-serif;
       <button class="tbtn" onclick="insertDash()">――</button>
       <button class="tbtn" onclick="insertDot()">……</button>
       <div class="tbtn-sep"></div>
-      <button class="tbtn ai" onclick="toggleAI()">✨ AIアシスト</button>
+      <button class="tbtn ai" onclick="toggleAI()">✨ AI</button>
       <div class="tbtn-sep"></div>
-      <button class="tbtn" onclick="copyForNarou()">なろうコピー</button>
-      <button class="tbtn" onclick="copyForKakuyomu()">カクヨムコピー</button>
+      <button class="tbtn" onclick="copyForNarou()">なろう</button>
+      <button class="tbtn" onclick="copyForKakuyomu()">カクヨム</button>
       <div class="tbtn-sep"></div>
-      <button class="tbtn primary" onclick="saveAsFile()">💾 ファイル保存</button>
-      <button class="tbtn" onclick="exportAll()">📦 全話保存</button>
+      <button class="tbtn primary" onclick="saveAsFile()">💾 保存</button>
+      <button class="tbtn" onclick="exportAll()">📦 全話</button>
+      <button class="tbtn" onclick="exportAllWithSettings()">📦+設定</button>
+      <div class="tbtn-sep"></div>
+      <button class="tbtn" id="dark-btn" onclick="toggleDark()">🌙 夜</button>
+      <button class="tbtn" id="font-btn" onclick="cycleFontSize()">文字 A</button>
     </div>
     <div class="editor-title-bar">
       <input type="text" id="section-title-input" placeholder="サブタイトル（任意）" oninput="saveSectionTitle()">
@@ -266,18 +310,17 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP','Meiryo',sans-serif;
     </div>
     <div class="editor-wrap" id="editor-wrap">
       <textarea id="editor" placeholder="ここに本文を書きます。&#10;&#10;ふりがな記法：｜桜《さくら》の木の下で" oninput="autoSave();updateCount()"></textarea>
-      <!-- AI パネル -->
       <div class="ai-panel" id="ai-panel">
         <div class="ai-panel-header">
           <span>✨ AIアシスト</span>
           <button class="ai-close" onclick="toggleAI()">✕</button>
         </div>
-        <div class="ai-options" id="ai-options">
+        <div class="ai-options">
           <button class="ai-opt" onclick="runAI('続き')">続きを書く</button>
           <button class="ai-opt" onclick="runAI('推敲')">推敲・改善</button>
           <button class="ai-opt" onclick="runAI('要約')">あらすじ要約</button>
-          <button class="ai-opt" onclick="runAI('キャラセリフ')">キャラのセリフ案</button>
-          <button class="ai-opt" onclick="runAI('描写強化')">情景描写を強化</button>
+          <button class="ai-opt" onclick="runAI('セリフ')">セリフ案</button>
+          <button class="ai-opt" onclick="runAI('描写強化')">描写強化</button>
         </div>
         <div class="ai-custom-row">
           <input type="text" id="ai-custom-input" placeholder="自由に指示（例：緊張感を高めて）">
@@ -293,7 +336,7 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP','Meiryo',sans-serif;
   </div>
 </div>
 
-<!-- 削除確認モーダル -->
+<!-- モーダル -->
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal">
     <h3>削除の確認</h3>
@@ -304,10 +347,7 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP','Meiryo',sans-serif;
     </div>
   </div>
 </div>
-
-<!-- トースト -->
 <div class="toast" id="toast"></div>
-
 </div>
 
 <script>
@@ -322,12 +362,63 @@ var S={
 function showToast(msg,dur){
   var t=document.getElementById('toast');
   t.textContent=msg;t.classList.add('show');
-  clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('show')},(dur||2200));
+  clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('show')},dur||2500);
 }
 
-// ======== TOP PANE TOGGLE ========
+// ======== DARK MODE ========
+var darkMode=false;
+function toggleDark(){
+  darkMode=!darkMode;
+  document.body.classList.toggle('dark',darkMode);
+  document.getElementById('dark-btn').classList.toggle('toggle-on',darkMode);
+  document.getElementById('dark-btn').textContent=darkMode?'☀️ 昼':'🌙 夜';
+  S.set('darkMode',darkMode?'1':'0');
+}
+
+// ======== FONT SIZE CYCLE ========
+var fontSizes=[16,18,21,14];
+var fontSizeIdx=0;
+function cycleFontSize(){
+  fontSizeIdx=(fontSizeIdx+1)%fontSizes.length;
+  var sz=fontSizes[fontSizeIdx];
+  document.documentElement.style.setProperty('--fs-editor',sz+'px');
+  document.getElementById('font-btn').textContent='文字 '+['A','A+','A++','小'][fontSizeIdx];
+  S.set('fontSizeIdx',fontSizeIdx);
+}
+
+// ======== STORY MODE ========
+var storyMode='main'; // 'main' or 'episode'
+function switchStoryMode(mode){
+  storyMode=mode;
+  document.getElementById('stab-main').classList.toggle('active',mode==='main');
+  document.getElementById('stab-episode').classList.toggle('active',mode==='episode');
+  // 段落追加UIの切替
+  var addType=document.getElementById('add-type');
+  var addEpType=document.getElementById('add-ep-type');
+  var structRow=document.getElementById('struct-add-row');
+  if(mode==='episode'){
+    addType.style.display='none';
+    addEpType.style.display='block';
+    document.getElementById('struct-header-label').textContent='✨ エピソード';
+  } else {
+    addType.style.display='block';
+    addEpType.style.display='none';
+    document.getElementById('struct-header-label').textContent='📖 本編構成';
+  }
+  saveCurrentSection();
+  buildStructList();
+  // モードに対応するセクションリストの先頭を選択
+  var list=getSectionsByMode(mode);
+  if(list.length) selectSection(list[0].id);
+  else { document.getElementById('editor').value=''; document.getElementById('section-title-input').value=''; updateCount(); curSectionId=null; }
+}
+function getSectionsByMode(mode){
+  return sections.filter(function(s){return (mode==='episode')?s.isEpisode:!s.isEpisode;});
+}
+
+// ======== TOP PANE ========
 var topCollapsed=false;
-var topHeight=160;
+var topHeight=140;
 function toggleTopPane(){
   topCollapsed=!topCollapsed;
   var pane=document.getElementById('top-pane');
@@ -335,33 +426,26 @@ function toggleTopPane(){
   if(topCollapsed){
     topHeight=pane.offsetHeight||topHeight;
     pane.classList.add('collapsed');
-    pane.style.height='36px';
+    pane.style.height='34px';
     btn.textContent='▼ 設定を開く';
   } else {
     pane.classList.remove('collapsed');
     pane.style.height=topHeight+'px';
-    btn.textContent='▲ 閉じる';
+    btn.textContent='▲ 設定を閉じる';
   }
 }
-
-// ======== TOP TABS ========
 function showTop(t){
   var ids=['chara','world','plot'];
   var tabs=document.querySelectorAll('.ttab');
-  for(var i=0;i<ids.length;i++){
-    var panel=document.getElementById('top-'+ids[i]);
-    var tab=tabs[i];
-    if(ids[i]===t){
-      panel.style.display=(t==='plot')?'block':'flex';
-      tab.classList.add('active');
-    } else {
-      panel.style.display='none';
-      tab.classList.remove('active');
-    }
-  }
+  ids.forEach(function(id,i){
+    var panel=document.getElementById('top-'+id);
+    var isActive=id===t;
+    panel.style.display=isActive?(t==='plot'?'block':'flex'):'none';
+    tabs[i].classList.toggle('active',isActive);
+  });
 }
 
-// ======== HORIZONTAL RESIZER ========
+// ======== H-RESIZER ========
 (function(){
   var res=document.getElementById('h-resizer');
   var pane=document.getElementById('top-pane');
@@ -369,43 +453,45 @@ function showTop(t){
   function onStart(e){
     if(topCollapsed)return;
     dragging=true;res.classList.add('dragging');
-    startY=(e.touches?e.touches[0].clientY:e.clientY);
-    startH=pane.offsetHeight;
-    e.preventDefault();
+    startY=e.touches?e.touches[0].clientY:e.clientY;
+    startH=pane.offsetHeight;e.preventDefault();
   }
   function onMove(e){
     if(!dragging)return;
-    var y=(e.touches?e.touches[0].clientY:e.clientY);
-    var newH=Math.max(40,Math.min(300,startH+(y-startY)));
-    pane.style.height=newH+'px';
-    topHeight=newH;
+    var y=e.touches?e.touches[0].clientY:e.clientY;
+    var newH=Math.max(38,Math.min(320,startH+(y-startY)));
+    pane.style.height=newH+'px';topHeight=newH;
   }
-  function onEnd(){dragging=false;res.classList.remove('dragging')}
+  function onEnd(){dragging=false;res.classList.remove('dragging');}
   res.addEventListener('mousedown',onStart);
   res.addEventListener('touchstart',onStart,{passive:false});
   document.addEventListener('mousemove',onMove);
   document.addEventListener('touchmove',onMove,{passive:false});
   document.addEventListener('mouseup',onEnd);
   document.addEventListener('touchend',onEnd);
+  // ダブルクリックで設定パネルを閉じて執筆画面を最大化
+  res.addEventListener('dblclick',function(){
+    if(!topCollapsed){toggleTopPane();}
+    else{toggleTopPane();}
+  });
 })();
 
-// ======== VERTICAL RESIZER ========
+// ======== V-RESIZER ========
 (function(){
   var res=document.getElementById('v-resizer');
   var col=document.getElementById('struct-col');
   var dragging=false,startX=0,startW=0;
   function onStart(e){
     dragging=true;res.classList.add('dragging');
-    startX=(e.touches?e.touches[0].clientX:e.clientX);
-    startW=col.offsetWidth;
-    e.preventDefault();
+    startX=e.touches?e.touches[0].clientX:e.clientX;
+    startW=col.offsetWidth;e.preventDefault();
   }
   function onMove(e){
     if(!dragging)return;
-    var x=(e.touches?e.touches[0].clientX:e.clientX);
-    var newW=Math.max(0,Math.min(320,startW+(x-startX)));
-    if(newW<40){newW=0;col.classList.add('collapsed');}
-    else{col.classList.remove('collapsed');col.style.width=newW+'px';col.style.minWidth=newW+'px';}
+    var x=e.touches?e.touches[0].clientX:e.clientX;
+    var newW=Math.max(0,Math.min(340,startW+(x-startX)));
+    if(newW<36){newW=0;col.classList.add('narrow');}
+    else{col.classList.remove('narrow');col.style.width=newW+'px';col.style.minWidth=newW+'px';}
   }
   function onEnd(){dragging=false;res.classList.remove('dragging');}
   res.addEventListener('mousedown',onStart);
@@ -417,8 +503,7 @@ function showTop(t){
 })();
 
 // ======== CHARACTERS ========
-var CHAR_COUNT=5;
-var curChar=0;
+var CHAR_COUNT=5;var curChar=0;
 function buildCharBtns(){
   var g=document.getElementById('char-btns');g.innerHTML='';
   for(var i=0;i<CHAR_COUNT;i++){
@@ -468,37 +553,46 @@ function handleDrop(e,type){
 // ======== SECTIONS ========
 var sections=[];
 var curSectionId=null;
+var EP_TAGS={flash:'⚡回想',battle:'⚔戦闘',romance:'💕恋愛',memory:'💭夢',extra:'📦番外',other:'📝'};
+
 function loadSections(){
   var raw=S.get('sections');
   if(raw){try{sections=JSON.parse(raw);}catch(e){sections=[];}}
-  if(!sections.length){
-    sections=[
-      {id:'prologue-0',type:'prologue',label:'序章',title:'',text:''},
-      {id:'chapter-0',type:'chapter',label:'第1章',title:'',text:''},
-      {id:'episode-0',type:'episode',label:'第1話',title:'',text:''},
-      {id:'episode-1',type:'episode',label:'第2話',title:'',text:''}
-    ];
+  if(!sections.filter(function(s){return !s.isEpisode;}).length){
+    sections=sections.filter(function(s){return s.isEpisode;});
+    sections.unshift(
+      {id:'episode-1',type:'episode',label:'第2話',title:'',text:'',isEpisode:false},
+      {id:'chapter-0',type:'chapter',label:'第1章',title:'',text:'',isEpisode:false},
+      {id:'prologue-0',type:'prologue',label:'序章',title:'',text:'',isEpisode:false}
+    );
     saveSections();
   }
 }
 function saveSections(){S.set('sections',JSON.stringify(sections));}
 function getSection(id){for(var i=0;i<sections.length;i++){if(sections[i].id===id)return sections[i];}return null;}
+
 function buildStructList(){
   var el=document.getElementById('struct-list');el.innerHTML='';
-  for(var i=0;i<sections.length;i++){
+  var list=getSectionsByMode(storyMode);
+  for(var i=0;i<list.length;i++){
     (function(s){
       var div=document.createElement('div');
       div.className='struct-item '+s.type+(s.id===curSectionId?' active':'');
+      var tagHtml='';
+      if(s.isEpisode&&s.epType&&s.epType!=='other'){
+        tagHtml='<span class="ep-tag '+s.epType+'">'+EP_TAGS[s.epType]+'</span>';
+      }
       var label=s.label+(s.title?' — '+s.title:'');
       div.innerHTML='<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(label)+'</span>'
-        +'<span class="struct-del" data-id="'+s.id+'">✕</span>';
+        +tagHtml+'<span class="struct-del">✕</span>';
       div.querySelector('.struct-del').onclick=function(e){e.stopPropagation();confirmDeleteSection(s.id);};
       div.onclick=function(){selectSection(s.id);};
       el.appendChild(div);
-    })(sections[i]);
+    })(list[i]);
   }
 }
-function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
 function selectSection(id){
   saveCurrentSection();curSectionId=id;
   var s=getSection(id);if(!s)return;
@@ -521,22 +615,24 @@ function saveSectionTitle(){
   saveSections();buildStructList();
 }
 function addSection(){
-  var type=document.getElementById('add-type').value;
+  var isEp=(storyMode==='episode');
+  var type=isEp?'episode':document.getElementById('add-type').value;
+  var epType=isEp?document.getElementById('add-ep-type').value:'other';
   var userLabel=document.getElementById('add-label').value.trim();
   var id=type+'-'+Date.now();
-  sections.push({id:id,type:type,label:userLabel||buildAutoLabel(type),title:'',text:''});
-  saveSections();buildStructList();
+  var s={id:id,type:type,label:userLabel||buildAutoLabel(type,isEp),title:'',text:'',isEpisode:isEp,epType:epType};
+  sections.push(s);saveSections();buildStructList();
   document.getElementById('add-label').value='';
   selectSection(id);
 }
-function buildAutoLabel(type){
-  var n=0;
-  for(var i=0;i<sections.length;i++){if(sections[i].type===type)n++;}n++;
+function buildAutoLabel(type,isEp){
+  var n=sections.filter(function(s){return s.isEpisode===isEp&&s.type===type;}).length+1;
+  if(isEp){var m={episode:'エピソード',other:'エピソード',flash:'回想',battle:'戦闘',romance:'恋愛',memory:'夢',extra:'番外'};return (m[type]||'エピソード')+n;}
   var map={prologue:'序章',chapter:'第'+n+'章',episode:'第'+n+'話',epilogue:'エピローグ',extra:'番外編'+n,memo:'メモ'+n};
   return map[type]||('項目'+n);
 }
 
-// ======== MODAL DELETE ========
+// 削除確認
 var pendingDeleteId=null;
 function confirmDeleteSection(id){
   var s=getSection(id);if(!s)return;
@@ -546,11 +642,15 @@ function confirmDeleteSection(id){
   document.getElementById('modal-ok-btn').onclick=function(){doDeleteSection();closeModal();};
 }
 function doDeleteSection(){
-  var id=pendingDeleteId;if(!id)return;
-  for(var i=0;i<sections.length;i++){if(sections[i].id===id){sections.splice(i,1);break;}}
-  if(curSectionId===id)curSectionId=sections.length?sections[0].id:null;
+  if(!pendingDeleteId)return;
+  for(var i=0;i<sections.length;i++){if(sections[i].id===pendingDeleteId){sections.splice(i,1);break;}}
+  if(curSectionId===pendingDeleteId){
+    var list=getSectionsByMode(storyMode);
+    curSectionId=list.length?list[0].id:null;
+  }
   saveSections();buildStructList();
   if(curSectionId)selectSection(curSectionId);
+  else{document.getElementById('editor').value='';updateCount();}
 }
 function closeModal(){document.getElementById('modal-overlay').classList.remove('open');pendingDeleteId=null;}
 document.getElementById('modal-overlay').onclick=function(e){if(e.target===this)closeModal();};
@@ -580,8 +680,7 @@ function insertRuby(){
   var ta=document.getElementById('editor');
   var s=ta.selectionStart,e=ta.selectionEnd;
   var sel=ta.value.substring(s,e)||'漢字';
-  var before=ta.value.substring(0,s);
-  var after=ta.value.substring(e);
+  var before=ta.value.substring(0,s),after=ta.value.substring(e);
   ta.value=before+'｜'+sel+'《かな》'+after;
   ta.selectionStart=ta.selectionEnd=s+sel.length+6;
   ta.focus();autoSave();
@@ -590,81 +689,96 @@ function insertIndent(){insertAt('\n\n　');}
 function insertDash(){insertAt('――');}
 function insertDot(){insertAt('……');}
 
-// ======== ファイル保存（iPhone対応） ========
-// iPhoneではBlob URLダウンロードが動作しないため、
-// テキストをdata: URIでダウンロードする
+// ======== SAVE / EXPORT ========
 function saveAsFile(){
   if(!curSectionId){showToast('セクションを選択してください');return;}
   saveCurrentSection();
   var s=getSection(curSectionId);
-  var text=s.text||'';
-  var filename=(s.label+(s.title?'_'+s.title:''))+'.txt';
-  downloadText(filename,text);
+  downloadText((s.label+(s.title?'_'+s.title:''))+'.txt',s.text||'');
 }
 function exportAll(){
   saveCurrentSection();
   var out='';
-  for(var i=0;i<sections.length;i++){
-    var s=sections[i];
+  sections.filter(function(s){return !s.isEpisode;}).forEach(function(s){
     out+='【'+s.label+(s.title?' — '+s.title:'')+'】\n\n'+(s.text||'')+'\n\n\n';
-  }
-  downloadText('小説_全文.txt',out);
-}
-function downloadText(filename,text){
-  // BOM付きUTF-8にして文字化けを防ぐ
-  var bom='\uFEFF';
-  // data: URI方式（iOSでも動作）
-  var dataUri='data:text/plain;charset=utf-8,'+encodeURIComponent(bom+text);
-  var a=document.createElement('a');
-  a.href=dataUri;
-  a.download=filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  showToast('💾 「'+filename+'」を保存しました');
+  });
+  downloadText('小説_本編_全文.txt',out);
 }
 
-// ======== なろうコピー ========
-// なろう：ルビ記法 |漢字《かな》  傍点 《《文字》》  太字 【文字】
+// 全文＋設定ファイル同時保存
+function exportAllWithSettings(){
+  saveCurrentSection();
+  // 本文ファイル
+  var out='';
+  sections.filter(function(s){return !s.isEpisode;}).forEach(function(s){
+    out+='【'+s.label+(s.title?' — '+s.title:'')+'】\n\n'+(s.text||'')+'\n\n\n';
+  });
+  // エピソードも追記
+  var eps=sections.filter(function(s){return s.isEpisode;});
+  if(eps.length){
+    out+='===== エピソード =====\n\n';
+    eps.forEach(function(s){
+      var tag=s.epType?('['+( EP_TAGS[s.epType]||s.epType)+'] '):'';
+      out+=tag+'【'+s.label+(s.title?' — '+s.title:'')+'】\n\n'+(s.text||'')+'\n\n\n';
+    });
+  }
+  downloadText('小説_全文.txt',out);
+
+  // 設定ファイル
+  var cfg='========== 小説設定ファイル ==========\n\n';
+  // キャラクター
+  cfg+='===== キャラクター設定 =====\n\n';
+  for(var i=0;i<CHAR_COUNT;i++){
+    var name=S.get('char-name-'+i)||('キャラ'+(i+1));
+    var profile=S.get('char-profile-'+i)||'（未入力）';
+    var hasImg=S.get('char-img-'+i)?'（画像あり）':'（画像なし）';
+    cfg+='--- '+name+' '+hasImg+' ---\n'+profile+'\n\n';
+  }
+  // 世界観
+  cfg+='===== 世界観・設定 =====\n'+(S.get('world-text')||'（未入力）')+'\n\n';
+  // あらすじ
+  cfg+='===== あらすじ・プロット =====\n'+(S.get('plot-text')||'（未入力）')+'\n\n';
+  cfg+='===== 保存日時 =====\n'+new Date().toLocaleString('ja-JP')+'\n';
+
+  setTimeout(function(){downloadText('小説_設定.txt',cfg);},300);
+  showToast('📦 全文＋設定の2ファイルを保存します');
+}
+
+function downloadText(filename,text){
+  var bom='\uFEFF';
+  var dataUri='data:text/plain;charset=utf-8,'+encodeURIComponent(bom+text);
+  var a=document.createElement('a');
+  a.href=dataUri;a.download=filename;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
+
+// ======== COPY ========
 function copyForNarou(){
   if(!curSectionId)return;
   saveCurrentSection();
   var s=getSection(curSectionId);
-  // ｜漢字《かな》→ |漢字《かな》（縦棒を半角に）
-  var txt=(s.text||'').replace(/｜/g,'|');
-  copyToClipboard(txt,'✅ なろう用テキストをコピーしました\n（ふりがな記法：|漢字《かな》）');
+  copyToClipboard((s.text||'').replace(/｜/g,'|'),'✅ なろう用コピー完了（|漢字《かな》形式）');
 }
-
-// ======== カクヨムコピー ========
-// カクヨム：ルビ記法 |漢字《かな》（なろうと同じ）
-// ただし縦棒は全角｜でもOK。傍点は《《文字》》、太字は**文字**
 function copyForKakuyomu(){
   if(!curSectionId)return;
   saveCurrentSection();
   var s=getSection(curSectionId);
-  // カクヨムは｜（全角縦棒）もOKだが念のため半角に統一
-  var txt=(s.text||'').replace(/｜/g,'|');
-  copyToClipboard(txt,'✅ カクヨム用テキストをコピーしました\n（ふりがな記法：|漢字《かな》）');
+  copyToClipboard((s.text||'').replace(/｜/g,'|'),'✅ カクヨム用コピー完了（|漢字《かな》形式）');
 }
 function copyToClipboard(txt,msg){
   if(navigator.clipboard&&navigator.clipboard.writeText){
     navigator.clipboard.writeText(txt).then(function(){showToast(msg);}).catch(function(){fallbackCopy(txt,msg);});
-  } else {
-    fallbackCopy(txt,msg);
-  }
+  } else {fallbackCopy(txt,msg);}
 }
 function fallbackCopy(txt,msg){
-  var ta=document.createElement('textarea');
-  ta.value=txt;ta.style.cssText='position:fixed;top:-999px;opacity:0';
+  var ta=document.createElement('textarea');ta.value=txt;ta.style.cssText='position:fixed;top:-999px;opacity:0';
   document.body.appendChild(ta);ta.focus();ta.select();
-  try{document.execCommand('copy');showToast(msg);}
-  catch(e){showToast('コピーできませんでした');}
+  try{document.execCommand('copy');showToast(msg);}catch(e){showToast('コピーできませんでした');}
   document.body.removeChild(ta);
 }
 
-// ======== AI アシスト ========
-var aiOpen=false;
-var lastAIResult='';
+// ======== AI ========
+var aiOpen=false;var lastAIResult='';
 function toggleAI(){
   aiOpen=!aiOpen;
   document.getElementById('ai-panel').classList.toggle('open',aiOpen);
@@ -672,16 +786,12 @@ function toggleAI(){
 }
 function buildAIContext(){
   var ctx='';
-  // キャラ情報
   for(var i=0;i<CHAR_COUNT;i++){
-    var p=S.get('char-profile-'+i);
-    var n=S.get('char-name-'+i)||('キャラ'+(i+1));
-    if(p&&p.trim())ctx+='【キャラクター '+n+'】\n'+p+'\n\n';
+    var p=S.get('char-profile-'+i);var n=S.get('char-name-'+i)||('キャラ'+(i+1));
+    if(p&&p.trim())ctx+='【キャラ: '+n+'】\n'+p+'\n\n';
   }
-  // 世界観
-  var w=S.get('world-text');if(w&&w.trim())ctx+='【世界観・設定】\n'+w+'\n\n';
-  // あらすじ
-  var pl=S.get('plot-text');if(pl&&pl.trim())ctx+='【全体あらすじ】\n'+pl+'\n\n';
+  var w=S.get('world-text');if(w&&w.trim())ctx+='【世界観】\n'+w+'\n\n';
+  var pl=S.get('plot-text');if(pl&&pl.trim())ctx+='【あらすじ】\n'+pl+'\n\n';
   return ctx;
 }
 async function runAI(mode){
@@ -689,73 +799,72 @@ async function runAI(mode){
   if(!text.trim()&&mode!=='続き'){showToast('本文を入力してください');return;}
   var prompts={
     '続き':'以下の小説の文章の続きを自然な流れで書いてください。同じ文体・語調を維持してください。続きの文章のみを出力してください。\n\n',
-    '推敲':'以下の小説の文章を推敲・改善してください。文体は変えず、表現をより豊かにしてください。改善後の文章のみを出力してください。\n\n',
+    '推敲':'以下の小説の文章を推敲・改善してください。文体は変えず、表現をより豊かにしてください。改善後の文章のみ出力してください。\n\n',
     '要約':'以下の小説の文章のあらすじを200字以内で要約してください。\n\n',
-    'キャラセリフ':'以下の場面のキャラクターが発しそうなセリフを3つ提案してください。キャラクターの性格を考慮してください。\n\n',
-    '描写強化':'以下の文章の情景描写・感情描写をより豊かにしてください。改善後の文章のみを出力してください。\n\n'
+    'セリフ':'以下の場面のキャラクターが発しそうなセリフを3つ提案してください。\n\n',
+    '描写強化':'以下の文章の情景描写・感情描写をより豊かにしてください。改善後の文章のみ出力してください。\n\n'
   };
-  var userPrompt=(prompts[mode]||mode+'してください。\n\n')
-    +'【本文】\n'+text.slice(-1500);
-  var systemPrompt='あなたは日本語小説の執筆アシスタントです。\n'+buildAIContext();
-  await callAI(systemPrompt,userPrompt,mode);
+  await callAI('あなたは日本語小説の執筆アシスタントです。\n'+buildAIContext(),
+    (prompts[mode]||mode+'してください。\n\n')+'【本文】\n'+text.slice(-1500),mode);
 }
 async function runAICustom(){
   var instr=document.getElementById('ai-custom-input').value.trim();
   if(!instr){showToast('指示を入力してください');return;}
   var text=document.getElementById('editor').value;
-  var userPrompt=instr+'\n\n【本文】\n'+text.slice(-1500);
-  var systemPrompt='あなたは日本語小説の執筆アシスタントです。\n'+buildAIContext();
-  await callAI(systemPrompt,userPrompt,instr);
+  await callAI('あなたは日本語小説の執筆アシスタントです。\n'+buildAIContext(),
+    instr+'\n\n【本文】\n'+text.slice(-1500),instr);
 }
-async function callAI(systemPrompt,userPrompt,mode){
+async function callAI(sys,user,mode){
   var output=document.getElementById('ai-output');
   output.innerHTML='<div class="ai-loading"><div class="spinner"></div>'+escHtml(mode)+'を生成中...</div>';
   try{
     var resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:1000,
-        system:systemPrompt,
-        messages:[{role:'user',content:userPrompt}]
-      })
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:sys,messages:[{role:'user',content:user}]})
     });
     var data=await resp.json();
     var result=(data.content||[]).map(function(c){return c.text||'';}).join('');
     lastAIResult=result;
+    var isText=(mode==='続き'||mode==='推敲'||mode==='描写強化');
     output.innerHTML='<div class="ai-result">'+escHtml(result)+'</div>'
       +'<div class="ai-result-btns">'
-      +(mode==='続き'||mode==='推敲'||mode==='描写強化'
-        ?'<button class="ai-result-btn" onclick="applyAIResult(\'append\')">末尾に追加</button>'
-         +'<button class="ai-result-btn" onclick="applyAIResult(\'replace\')">全文と置き換え</button>'
-        :'')
-      +'<button class="ai-result-btn" onclick="copyAIResult()">コピー</button>'
-      +'</div>';
+      +(isText?'<button class="ai-result-btn" onclick="applyAIResult(\'append\')">末尾に追加</button>'
+              +'<button class="ai-result-btn" onclick="applyAIResult(\'replace\')">全文と置換</button>':'')
+      +'<button class="ai-result-btn" onclick="copyAIResult()">コピー</button></div>';
   }catch(e){
     output.innerHTML='<div class="ai-result" style="color:#c0392b">エラーが発生しました。しばらく経ってから再試行してください。</div>';
   }
 }
 function applyAIResult(mode){
   var ta=document.getElementById('editor');
-  if(mode==='append'){ta.value=ta.value+'\n\n'+lastAIResult;}
-  else if(mode==='replace'){ta.value=lastAIResult;}
-  autoSave();updateCount();
-  showToast('本文に反映しました');
+  if(mode==='append')ta.value=ta.value+'\n\n'+lastAIResult;
+  else if(mode==='replace')ta.value=lastAIResult;
+  autoSave();updateCount();showToast('本文に反映しました');
 }
-function copyAIResult(){
-  copyToClipboard(lastAIResult,'AI生成テキストをコピーしました');
-}
+function copyAIResult(){copyToClipboard(lastAIResult,'AI生成テキストをコピーしました');}
 
 // ======== INIT ========
-loadSections();
-buildStructList();
-if(sections.length)selectSection(sections[0].id);
-buildCharBtns();selectChar(0);
-var wt=S.get('world-text');if(wt)document.getElementById('world-text').value=wt;
-var wi=S.get('world-img');if(wi)setImg(document.getElementById('world-img'),wi);
-var pt=S.get('plot-text');if(pt)document.getElementById('plot-text').value=pt;
-updateCount();
+(function(){
+  // ダークモード復元
+  if(S.get('darkMode')==='1'){darkMode=true;document.body.classList.add('dark');document.getElementById('dark-btn').classList.add('toggle-on');document.getElementById('dark-btn').textContent='☀️ 昼';}
+  // フォントサイズ復元
+  var fi=parseInt(S.get('fontSizeIdx')||'0');
+  if(fi){fontSizeIdx=fi;document.documentElement.style.setProperty('--fs-editor',fontSizes[fi]+'px');document.getElementById('font-btn').textContent='文字 '+['A','A+','A++','小'][fi];}
+  // 初期設定パネル高さ（1:5比率）
+  var appH=window.innerHeight;
+  var initTopH=Math.round(appH/6);
+  document.getElementById('top-pane').style.height=initTopH+'px';
+  topHeight=initTopH;
+  // データ読込
+  loadSections();buildStructList();
+  var mainList=getSectionsByMode('main');
+  if(mainList.length)selectSection(mainList[0].id);
+  buildCharBtns();selectChar(0);
+  var wt=S.get('world-text');if(wt)document.getElementById('world-text').value=wt;
+  var wi=S.get('world-img');if(wi)setImg(document.getElementById('world-img'),wi);
+  var pt=S.get('plot-text');if(pt)document.getElementById('plot-text').value=pt;
+  updateCount();
+})();
 </script>
 </body>
 </html>
