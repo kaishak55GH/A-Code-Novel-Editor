@@ -109,6 +109,13 @@ body{font-family:var(--font-ui);background:var(--bg);color:var(--text);font-size
 .ep-tag.other{background:var(--text3)}
 .struct-del{margin-left:auto;font-size:11px;color:#ccc;cursor:pointer;padding:2px 4px;display:none;flex-shrink:0}
 .struct-item:hover .struct-del{display:inline}
+/* ドラッグハンドル */
+.drag-handle{font-size:13px;color:var(--text3);cursor:grab;padding:0 3px 0 0;flex-shrink:0;opacity:0;transition:opacity 0.15s;user-select:none;-webkit-user-select:none;touch-action:none}
+.struct-item:hover .drag-handle{opacity:1}
+.struct-item.active .drag-handle{color:rgba(255,255,255,0.6)}
+.struct-item.drag-over-top{border-top:2px solid var(--accent2)!important}
+.struct-item.drag-over-bottom{border-bottom:2px solid var(--accent2)!important}
+.struct-item.dragging-src{opacity:0.4}
 .struct-add-row{padding:7px 10px;display:flex;flex-direction:column;gap:4px;border-top:1px solid var(--border);flex-shrink:0}
 .struct-add-row select,.struct-add-row input{font-size:11px;font-weight:600;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);width:100%}
 .struct-add-row button{font-size:11px;font-weight:700;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text2);cursor:pointer;width:100%;transition:all 0.15s}
@@ -720,17 +727,31 @@ function buildStructList(){
     (function(s){
       var div=document.createElement('div');
       div.className='struct-item '+s.type+(s.id===curSectionId?' active':'');
-      var tagHtml='';
-      if(s.isEpisode&&s.epType&&s.epType!=='other'){
-        tagHtml='<span class="ep-tag '+s.epType+'">'+EP_TAGS[s.epType]+'</span>';
-      }
+      div.dataset.id=s.id;
+
+      // ドラッグハンドル（≡）
+      var handle=document.createElement('span');
+      handle.className='drag-handle';
+      handle.textContent='≡';
+      handle.title='ドラッグして並び替え';
+      div.appendChild(handle);
+
       // ラベルテキスト
       var labelSpan=document.createElement('span');
       labelSpan.className='label-text';
       labelSpan.title='ダブルクリックで名前を変更';
       labelSpan.textContent=s.label+(s.title?' — '+s.title:'');
       div.appendChild(labelSpan);
-      if(tagHtml){div.insertAdjacentHTML('beforeend',tagHtml);}
+
+      // エピソードバッジ
+      if(s.isEpisode&&s.epType&&s.epType!=='other'){
+        var tag=document.createElement('span');
+        tag.className='ep-tag '+s.epType;
+        tag.textContent=EP_TAGS[s.epType];
+        div.appendChild(tag);
+      }
+
+      // 削除ボタン
       var delBtn=document.createElement('span');
       delBtn.className='struct-del';delBtn.textContent='✕';
       delBtn.addEventListener('click',function(e){e.stopPropagation();confirmDeleteSection(s.id);});
@@ -739,12 +760,14 @@ function buildStructList(){
       // クリック／ダブルクリックの競合を防ぐためタイマー制御
       var clickTimer=null;
       div.addEventListener('click',function(e){
-        if(div.querySelector('.rename-input'))return; // 編集中は無視
+        if(div.querySelector('.rename-input'))return;
+        if(e.target===handle)return; // ハンドルクリックは無視
         clearTimeout(clickTimer);
         clickTimer=setTimeout(function(){selectSection(s.id);},220);
       });
       div.addEventListener('dblclick',function(e){
-        clearTimeout(clickTimer); // シングルクリック処理をキャンセル
+        if(e.target===handle)return;
+        clearTimeout(clickTimer);
         e.preventDefault();
         startRename(div,s,labelSpan);
       });
@@ -752,6 +775,8 @@ function buildStructList(){
       el.appendChild(div);
     })(list[i]);
   }
+  // 並び替え機能を初期化
+  initSortable(el);
 }
 
 function startRename(div,s,labelSpan){
@@ -784,6 +809,140 @@ function startRename(div,s,labelSpan){
   input.addEventListener('click',function(e){e.stopPropagation();});
   input.addEventListener('dblclick',function(e){e.stopPropagation();});
 }
+// ======== SORTABLE (drag & touch reorder) ========
+function initSortable(listEl){
+  var items=listEl.querySelectorAll('.struct-item');
+  items.forEach(function(item){
+    var handle=item.querySelector('.drag-handle');
+
+    // ===== PC: HTML5 Drag & Drop =====
+    item.setAttribute('draggable','true');
+    item.addEventListener('dragstart',function(e){
+      e.dataTransfer.effectAllowed='move';
+      e.dataTransfer.setData('text/plain',item.dataset.id);
+      setTimeout(function(){item.classList.add('dragging-src');},0);
+    });
+    item.addEventListener('dragend',function(){
+      item.classList.remove('dragging-src');
+      listEl.querySelectorAll('.drag-over-top,.drag-over-bottom').forEach(function(el){
+        el.classList.remove('drag-over-top','drag-over-bottom');
+      });
+    });
+    item.addEventListener('dragover',function(e){
+      e.preventDefault();e.dataTransfer.dropEffect='move';
+      listEl.querySelectorAll('.drag-over-top,.drag-over-bottom').forEach(function(el){
+        el.classList.remove('drag-over-top','drag-over-bottom');
+      });
+      var rect=item.getBoundingClientRect();
+      var mid=rect.top+rect.height/2;
+      item.classList.add(e.clientY<mid?'drag-over-top':'drag-over-bottom');
+    });
+    item.addEventListener('dragleave',function(){
+      item.classList.remove('drag-over-top','drag-over-bottom');
+    });
+    item.addEventListener('drop',function(e){
+      e.preventDefault();
+      var fromId=e.dataTransfer.getData('text/plain');
+      var toId=item.dataset.id;
+      if(fromId===toId)return;
+      var rect=item.getBoundingClientRect();
+      var before=e.clientY<rect.top+rect.height/2;
+      reorderSection(fromId,toId,before);
+    });
+
+    // ===== iOS / Touch: フリックで並び替え =====
+    var touchDragging=false,ghost=null,touchFromId=null,lastOver=null,lastBefore=true;
+    handle.addEventListener('touchstart',function(e){
+      e.preventDefault();e.stopPropagation();
+      touchFromId=item.dataset.id;
+      touchDragging=true;
+      item.classList.add('dragging-src');
+      // ゴースト生成
+      ghost=item.cloneNode(true);
+      ghost.style.cssText='position:fixed;left:0;top:0;width:'+item.offsetWidth+'px;'
+        +'opacity:0.85;z-index:9999;pointer-events:none;border-radius:4px;'
+        +'background:var(--accent2);color:#fff;box-shadow:0 4px 16px rgba(0,0,0,0.3)';
+      document.body.appendChild(ghost);
+      moveTouchGhost(e.touches[0]);
+    },{passive:false});
+
+    handle.addEventListener('touchmove',function(e){
+      if(!touchDragging)return;
+      e.preventDefault();
+      var t=e.touches[0];
+      moveTouchGhost(t);
+      // どのアイテムの上にいるか判定
+      ghost.style.display='none';
+      var el=document.elementFromPoint(t.clientX,t.clientY);
+      ghost.style.display='';
+      var targetItem=el?el.closest('.struct-item'):null;
+      listEl.querySelectorAll('.drag-over-top,.drag-over-bottom').forEach(function(el){
+        el.classList.remove('drag-over-top','drag-over-bottom');
+      });
+      if(targetItem&&targetItem!==item){
+        var rect=targetItem.getBoundingClientRect();
+        lastBefore=t.clientY<rect.top+rect.height/2;
+        targetItem.classList.add(lastBefore?'drag-over-top':'drag-over-bottom');
+        lastOver=targetItem;
+      } else { lastOver=null; }
+    },{passive:false});
+
+    handle.addEventListener('touchend',function(e){
+      if(!touchDragging)return;
+      touchDragging=false;
+      item.classList.remove('dragging-src');
+      if(ghost){ghost.parentNode&&ghost.parentNode.removeChild(ghost);ghost=null;}
+      listEl.querySelectorAll('.drag-over-top,.drag-over-bottom').forEach(function(el){
+        el.classList.remove('drag-over-top','drag-over-bottom');
+      });
+      if(lastOver&&lastOver.dataset.id!==touchFromId){
+        reorderSection(touchFromId,lastOver.dataset.id,lastBefore);
+      }
+      lastOver=null;
+    },{passive:false});
+
+    handle.addEventListener('touchcancel',function(){
+      touchDragging=false;
+      item.classList.remove('dragging-src');
+      if(ghost){ghost.parentNode&&ghost.parentNode.removeChild(ghost);ghost=null;}
+      listEl.querySelectorAll('.drag-over-top,.drag-over-bottom').forEach(function(el){
+        el.classList.remove('drag-over-top','drag-over-bottom');
+      });
+      lastOver=null;
+    },{passive:false});
+  });
+}
+
+function moveTouchGhost(touch){
+  if(!touch)return;
+  var ghost=document.body.lastElementChild;
+  if(ghost&&ghost.style.position==='fixed'){
+    ghost.style.left=(touch.clientX-20)+'px';
+    ghost.style.top=(touch.clientY-20)+'px';
+  }
+}
+
+function reorderSection(fromId,toId,insertBefore){
+  // 現在の全sectionsの中でfromとtoを探す
+  var fromIdx=-1,toIdx=-1;
+  for(var i=0;i<sections.length;i++){
+    if(sections[i].id===fromId)fromIdx=i;
+    if(sections[i].id===toId)toIdx=i;
+  }
+  if(fromIdx===-1||toIdx===-1||fromIdx===toIdx)return;
+  // fromを取り出してtoの前後に挿入
+  var moved=sections.splice(fromIdx,1)[0];
+  // splice後にtoIdxがずれる可能性があるので再検索
+  var newToIdx=-1;
+  for(var j=0;j<sections.length;j++){if(sections[j].id===toId){newToIdx=j;break;}}
+  if(newToIdx===-1)return;
+  var insertAt=insertBefore?newToIdx:newToIdx+1;
+  sections.splice(insertAt,0,moved);
+  saveSections();
+  buildStructList();
+  showToast('「'+moved.label+'」を移動しました');
+}
+
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
 function selectSection(id){
